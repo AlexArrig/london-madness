@@ -397,32 +397,34 @@ export default function App() {
               ))}
 
             {/* Giocatori */}
-            {Object.entries(players).map(([id, p]) => (
-              <div
-                key={id}
-                style={{
-                  position: 'absolute',
-                  left: `${p.x - 18}px`,
-                  top: `${p.y - 18}px`,
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  background: id === clientId ? '#d35400' : '#2980b9',
-                  border: '2px solid #ffffff',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#fff',
-                  zIndex: 3
-                }}
-                title={`Giocatore ${id}`}
-              >
-                {id.substring(0, 2).toUpperCase()}
-              </div>
-            ))}
+{Object.entries(players).map(([id, p]) => (
+  <div
+    key={id}
+    style={{
+      position: 'absolute',
+      left: `${p.x - 18}px`,
+      top: `${p.y - 18}px`,
+      width: '36px',
+      height: '36px',
+      borderRadius: '50%',
+      background: id === clientId ? '#d35400' : '#2980b9',
+      border: '2px solid #ffffff',
+      boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '11px',
+      fontWeight: 'bold',
+      color: '#fff',
+      zIndex: 3,
+      // Transizione fluida per la camminata naturale
+      transition: 'left 0.4s ease-in-out, top 0.4s ease-in-out',
+    }}
+    title={`Giocatore ${id}`}
+  >
+    {id.substring(0, 2).toUpperCase()}
+  </div>
+))}
 
           </div>
         </div>
