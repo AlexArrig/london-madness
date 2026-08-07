@@ -8,6 +8,8 @@ class InteractionSpot extends Schema {
   @type("number") y: number = 0;
   @type("string") state: string = ""; // "closed", "open", "unsearched", "explored"
   @type("string") requiredKey: string = "";
+  @type("string") tileAId: string = ""; // ID della prima stanza collegata
+  @type("string") tileBId: string = ""; // ID della seconda stanza collegata
 }
 
 class Tile extends Schema {
@@ -73,7 +75,6 @@ export class GameRoom extends Room<any> {
       }
 
       let canPass = true;
-      // Controlla se c'è una porta sbarrata tra le due stanze
       const midX = (currentTile.x + targetTile.x) / 2;
       const midY = (currentTile.y + targetTile.y) / 2;
 
@@ -131,16 +132,48 @@ export class GameRoom extends Room<any> {
         player.actionsLeft -= 1;
         this.state.gameMessage = `Hai cercato nell'oggetto e trovato una chiave! (Azioni rimaste: ${player.actionsLeft})`;
       } 
-      else if (spot.type === "door" && spot.state !== "open") {
-        if (spot.requiredKey && !player.hasKey) {
-          this.state.gameMessage = "Questa porta richiede una chiave per essere aperta.";
+      else if (spot.type === "door") {
+        if (spot.state !== "open") {
+          if (spot.requiredKey && !player.hasKey) {
+            this.state.gameMessage = "Questa porta richiede una chiave per essere aperta.";
+            return;
+          }
+          spot.state = "open";
+        }
+
+        // Trova la tessera collegata dall'altra parte rispetto alla posizione attuale del giocatore
+        const targetTileId = (spot.tileAId === player.currentTile) ? spot.tileBId : spot.tileAId;
+        const targetTile = this.state.tiles.get(targetTileId);
+
+        if (!targetTile) {
+          this.state.gameMessage = "Impossibile trovare la stanza collegata.";
           return;
         }
-        spot.state = "open";
+
+        // Sposta automaticamente il giocatore nella nuova stanza e rivelala
+        player.x = targetTile.x - 25 + (targetTile.width * 100);
+        player.y = targetTile.y + (targetTile.height * 100);
+        player.currentTile = targetTile.id;
         player.actionsLeft -= 1;
-        this.state.gameMessage = `Porta aperta con successo! (Azioni rimaste: ${player.actionsLeft})`;
+        targetTile.explored = true;
+
+        this.state.gameMessage = `Porta aperta! Sei entrato in ${targetTile.name}. (Azioni rimaste: ${player.actionsLeft})`;
+
         if (spot.id === "door_final") {
           this.state.gameWon = true;
+        }
+
+        if (targetTile.id !== "tile_0" && targetTile.id !== "tile_final") {
+          const searchId = `search_${targetTile.id}`;
+          if (!this.state.interactions.has(searchId)) {
+            const searchSpot = new InteractionSpot();
+            searchSpot.id = searchId;
+            searchSpot.type = "search";
+            searchSpot.x = targetTile.x + (targetTile.width * 100);
+            searchSpot.y = targetTile.y + (targetTile.height * 100);
+            searchSpot.state = "unsearched";
+            this.state.interactions.set(searchSpot.id, searchSpot);
+          }
         }
       } else {
         this.state.gameMessage = "Interazione non valida o oggetto già esplorato.";
@@ -295,7 +328,6 @@ export class GameRoom extends Room<any> {
 
     const roomsList = [{ id: "tile_0", x: 0, y: 0, width: 1, height: 1 }];
     
-    // La difficoltà aumenta il numero di stanze e la ramificazione
     const totalRooms = difficulty * 3 + 5;
     
     const possibleSizes = [
@@ -318,13 +350,11 @@ export class GameRoom extends Room<any> {
     while (createdCount < totalRooms && roomsList.length > 0 && attempts < 300) {
       attempts++;
       
-      // A difficoltà maggiore, maggiore probabilità di scegliere un nodo casuale per creare ramificazioni
       const parentIndex = difficulty > 1 && Math.random() < (difficulty * 0.2)
         ? Math.floor(Math.random() * roomsList.length)
         : roomsList.length - 1;
       const parent = roomsList[parentIndex];
 
-      // Le dimensioni non sono legate alla difficoltà (difficoltà 1 può avere stanze grandi)
       const size = possibleSizes[Math.floor(Math.random() * possibleSizes.length)];
       const dir = directions[Math.floor(Math.random() * directions.length)];
 
@@ -364,6 +394,8 @@ export class GameRoom extends Room<any> {
         door.x = (nx + parent.x + (size.w * TILE_SIZE)/2) / 2;
         door.y = (ny + parent.y + (size.h * TILE_SIZE)/2) / 2;
         door.state = "closed"; 
+        door.tileAId = parent.id;
+        door.tileBId = tileId;
         this.state.interactions.set(door.id, door);
 
         roomsList.push({ id: tileId, x: nx, y: ny, width: size.w, height: size.h });
@@ -402,6 +434,8 @@ export class GameRoom extends Room<any> {
         finalDoor.y = (fny + lastRoom.y) / 2 + 100;
         finalDoor.state = "closed";
         finalDoor.requiredKey = "key";
+        finalDoor.tileAId = lastRoom.id;
+        finalDoor.tileBId = "tile_final";
         this.state.interactions.set(finalDoor.id, finalDoor);
 
         finalPlaced = true;
@@ -427,6 +461,8 @@ export class GameRoom extends Room<any> {
       fallbackDoor.y = lastRoom.y + 100;
       fallbackDoor.state = "closed";
       fallbackDoor.requiredKey = "key";
+      fallbackDoor.tileAId = lastRoom.id;
+      fallbackDoor.tileBId = "tile_final";
       this.state.interactions.set(fallbackDoor.id, fallbackDoor);
     }
   }

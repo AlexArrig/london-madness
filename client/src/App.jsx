@@ -14,11 +14,11 @@ export default function App() {
   const [interactions, setInteractions] = useState({});
   const [gameMessage, setGameMessage] = useState("");
   const [gameWon, setGameWon] = useState(false);
-  
+   
   // Parametri di creazione
   const [difficulty, setDifficulty] = useState(1);
   const [maxPlayers, setMaxPlayers] = useState(4);
-  
+   
   const [clientId, setClientId] = useState("");
   const [roomIdInput, setRoomIdInput] = useState("");
   const [activePlayerId, setActivePlayerId] = useState("");
@@ -80,13 +80,30 @@ export default function App() {
 
       const newTiles = {};
       state.tiles.forEach((t, key) => {
-        newTiles[key] = { id: t.id, name: t.name, x: t.x, y: t.y, explored: t.explored };
+        newTiles[key] = { 
+          id: t.id, 
+          name: t.name, 
+          x: t.x, 
+          y: t.y, 
+          width: t.width, 
+          height: t.height, 
+          explored: t.explored 
+        };
       });
       setTiles(newTiles);
 
       const newInteractions = {};
       state.interactions.forEach((item, key) => {
-        newInteractions[key] = { id: item.id, type: item.type, x: item.x, y: item.y, state: item.state };
+        newInteractions[key] = { 
+          id: item.id, 
+          type: item.type, 
+          x: item.x, 
+          y: item.y, 
+          state: item.state,
+          requiredKey: item.requiredKey,
+          tileAId: item.tileAId,
+          tileBId: item.tileBId
+        };
       });
       setInteractions(newInteractions);
 
@@ -172,7 +189,7 @@ export default function App() {
       <div style={{ background: '#121212', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', padding: '20px', boxSizing: 'border-box' }}>
         <h1 style={{ color: '#e74c3c', marginBottom: '5px', textAlign: 'center', fontSize: 'clamp(1.5rem, 5vw, 2.5rem)' }}>Le Case della Follia</h1>
         <p style={{ color: '#888', marginBottom: '35px', textAlign: 'center' }}>App Companion</p>
-        
+         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '320px', background: '#1a1a1a', padding: '30px', borderRadius: '8px', border: '1px solid #333', boxSizing: 'border-box' }}>
           <button 
             onClick={() => setView('setup')} 
@@ -255,10 +272,10 @@ export default function App() {
 
   return (
     <div style={{ background: '#121212', color: '#fff', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', overflow: 'hidden', boxSizing: 'border-box' }}>
-      
+       
       {/* Contenitore principale */}
       <div style={{ width: '100%', height: '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', padding: 'clamp(10px, 10vh, 10vh) clamp(10px, 2vw, 2vw)', boxSizing: 'border-box' }}>
-        
+         
         {/* Barra superiore informazioni */}
         <div style={{ flexShrink: 0, width: '100%', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', background: '#1a1a1a', padding: '10px 15px', borderRadius: '6px', border: '1px solid #333', boxSizing: 'border-box', marginBottom: '8px' }}>
           <div>ID: <code style={{ color: '#f1c40f', background: '#222', padding: '2px 6px', borderRadius: '4px', userSelect: 'all' }}>{room?.roomId}</code></div>
@@ -310,49 +327,47 @@ export default function App() {
             transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
             transformOrigin: '0 0'
           }}>
-            
+             
             {/* Tessere */}
-{Object.entries(tiles)
-  .filter(([id, tile]) => tile.explored || currentPlayer.currentTile === id)
-  .map(([id, tile]) => (
-    <div
-      key={id}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (room && isMyTurn) room.send("move_to_tile", { tileId: tile.id });
-      }}
-      style={{
-        position: 'absolute',
-        left: `${tile.x - 75}px`,
-        top: `${tile.y - 75}px`,
-        width: `${tile.width ? tile.width * 200 - 50 : 150}px`,
-        height: `${tile.height ? tile.height * 200 - 50 : 150}px`,
-        background: '#2c3e50',
-        border: currentPlayer.currentTile === tile.id ? '3px solid #f1c40f' : '3px solid #e74c3c',
-        borderRadius: '6px',
-        cursor: isMyTurn ? 'pointer' : 'default',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
-        zIndex: 1
-      }}
-    >
-      <span style={{ fontSize: '12px', color: '#ecf0f1', fontWeight: 'bold', textAlign: 'center', padding: '4px' }}>
-        {tile.name}
-      </span>
-    </div>
-  ))}
+            {Object.entries(tiles)
+              .filter(([id, tile]) => tile.explored || currentPlayer.currentTile === id)
+              .map(([id, tile]) => (
+                <div
+                  key={id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (room && isMyTurn) room.send("move_to_tile", { tileId: tile.id });
+                  }}
+                  style={{
+                    position: 'absolute',
+                    left: `${tile.x - 75}px`,
+                    top: `${tile.y - 75}px`,
+                    width: `${tile.width ? tile.width * 200 - 50 : 150}px`,
+                    height: `${tile.height ? tile.height * 200 - 50 : 150}px`,
+                    background: '#2c3e50',
+                    border: currentPlayer.currentTile === tile.id ? '3px solid #f1c40f' : '3px solid #e74c3c',
+                    borderRadius: '6px',
+                    cursor: isMyTurn ? 'pointer' : 'default',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
+                    zIndex: 1
+                  }}
+                >
+                  <span style={{ fontSize: '12px', color: '#ecf0f1', fontWeight: 'bold', textAlign: 'center', padding: '4px' }}>
+                    {tile.name}
+                  </span>
+                </div>
+              ))}
 
-            {/* Oggetti e Porte (Visibili solo se almeno una delle tessere collegate è esplorata) */}
-{Object.entries(interactions)
-  .filter(([id, spot]) => {
-    // Trova tutte le tessere vicine allo spot (entro 110px)
-    const connectedTiles = Object.values(tiles).filter(t => Math.abs(t.x - spot.x) <= 110 && Math.abs(t.y - spot.y) <= 110);
-    // Visibile se almeno una tessera collegata è esplorata o è quella in cui si trova il giocatore
-    return connectedTiles.some(t => t.explored || currentPlayer.currentTile === t.id);
-  })
-  .map(([id, spot]) => (
+            {/* Oggetti e Porte (Visibili se almeno una delle tessere collegate è esplorata) */}
+            {Object.entries(interactions)
+              .filter(([id, spot]) => {
+                const connectedTiles = Object.values(tiles).filter(t => Math.abs(t.x - spot.x) <= 110 && Math.abs(t.y - spot.y) <= 110);
+                return connectedTiles.some(t => t.explored || currentPlayer.currentTile === t.id);
+              })
+              .map(([id, spot]) => (
                 <div
                   key={id}
                   onClick={(e) => {
