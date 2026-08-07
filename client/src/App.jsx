@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import * as Colyseus from "@colyseus/sdk";
 
 // Configurazione automatica dell'endpoint
@@ -28,6 +28,10 @@ export default function App() {
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // Riferimenti per gestire il pinch-to-zoom da mobile
+  const touchStartDist = useRef(null);
+  const initialZoom = useRef(1);
 
   // Crea la stanza con Difficoltà e Max Giocatori
   const handleCreateGame = async () => {
@@ -90,23 +94,48 @@ export default function App() {
     });
   };
 
-  // Pan & Zoom handlers (Supporto sia Mouse che Touch)
+  // Calcola la distanza tra due tocchi per il pinch-to-zoom
+  const getTouchDistance = (touches) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Gestione Touch (Pan con un dito, Pinch con due dita)
   const handleTouchStart = (e) => {
     if (e.touches.length === 1) {
       setIsDragging(true);
       setDragStart({ x: e.touches[0].clientX - camera.x, y: e.touches[0].clientY - camera.y });
+    } else if (e.touches.length === 2) {
+      setIsDragging(false);
+      touchStartDist.current = getTouchDistance(e.touches);
+      initialZoom.current = camera.zoom;
     }
   };
 
   const handleTouchMove = (e) => {
-    if (!isDragging || e.touches.length !== 1) return;
-    setCamera(prev => ({
-      ...prev,
-      x: e.touches[0].clientX - dragStart.x,
-      y: e.touches[0].clientY - dragStart.y
-    }));
+    if (e.touches.length === 1 && isDragging) {
+      setCamera(prev => ({
+        ...prev,
+        x: e.touches[0].clientX - dragStart.x,
+        y: e.touches[0].clientY - dragStart.y
+      }));
+    } else if (e.touches.length === 2 && touchStartDist.current !== null) {
+      const currentDist = getTouchDistance(e.touches);
+      const factor = currentDist / touchStartDist.current;
+      let newZoom = initialZoom.current * factor;
+      if (newZoom < 0.4) newZoom = 0.4;
+      if (newZoom > 2.5) newZoom = 2.5;
+      setCamera(prev => ({ ...prev, zoom: newZoom }));
+    }
   };
 
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    touchStartDist.current = null;
+  };
+
+  // Gestione Mouse (Pan & Zoom rotellina)
   const handleMouseDown = (e) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX - camera.x, y: e.clientY - camera.y });
@@ -142,7 +171,6 @@ export default function App() {
         <p style={{ color: '#888', marginBottom: '35px', textAlign: 'center' }}>App Companion</p>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '320px', background: '#1a1a1a', padding: '30px', borderRadius: '8px', border: '1px solid #333', boxSizing: 'border-box' }}>
-          
           <button 
             onClick={() => setView('setup')} 
             style={{ padding: '14px', background: '#c0392b', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '15px', cursor: 'pointer', fontWeight: 'bold' }}
@@ -170,7 +198,6 @@ export default function App() {
               </button>
             </div>
           </div>
-
         </div>
       </div>
     );
@@ -183,8 +210,6 @@ export default function App() {
         <h1 style={{ color: '#e74c3c', marginBottom: '15px', textAlign: 'center', fontSize: 'clamp(1.3rem, 4vw, 2rem)' }}>Configurazione Indagine</h1>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '340px', background: '#1a1a1a', padding: '30px', borderRadius: '8px', border: '1px solid #333', boxSizing: 'border-box' }}>
-          
-          {/* Difficoltà */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontSize: '13px', color: '#aaa' }}>Difficoltà (1-5): <strong>{difficulty}</strong></label>
             <input 
@@ -194,7 +219,6 @@ export default function App() {
             />
           </div>
 
-          {/* Max Giocatori */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontSize: '13px', color: '#aaa' }}>Max Giocatori (1-5): <strong>{maxPlayers}</strong></label>
             <input 
@@ -217,7 +241,6 @@ export default function App() {
           >
             ← Indietro
           </button>
-
         </div>
       </div>
     );
@@ -246,7 +269,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Viewport mappa (Fluida e Responsive) */}
+      {/* Viewport mappa */}
       <div 
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -254,7 +277,7 @@ export default function App() {
         onMouseLeave={handleMouseUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        onTouchEnd={handleMouseUp}
+        onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
         style={{ 
           flex: 1,
@@ -274,10 +297,10 @@ export default function App() {
           position: 'absolute',
           top: '50%',
           left: '50%',
-          transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
-          transformOrigin: '0 0',
           width: '0px',
-          height: '0px'
+          height: '0px',
+          transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
+          transformOrigin: 'center center'
         }}>
           
           {/* Tessere */}
