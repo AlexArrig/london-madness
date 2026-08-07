@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import * as Colyseus from "@colyseus/sdk";
 
+// Configurazione automatica dell'endpoint:
+// Se siamo su localhost usa il server locale, altrimenti punta a Render (wss://)
+const SERVER_URL = window.location.hostname === 'localhost' 
+  ? "ws://localhost:2567" 
+  : "wss://london-madness.onrender.com";
+
 export default function App() {
   const [view, setView] = useState('menu'); // 'menu', 'setup', 'game'
   const [room, setRoom] = useState(null);
@@ -27,7 +33,7 @@ export default function App() {
   // Crea la stanza con Difficoltà e Max Giocatori
   const handleCreateGame = async () => {
     try {
-      const client = new Colyseus.Client(`ws://${window.location.hostname}:2567`);
+      const client = new Colyseus.Client(SERVER_URL);
       const r = await client.create("madness", { difficulty, maxPlayers });
       setupRoom(r);
     } catch (e) {
@@ -40,7 +46,7 @@ export default function App() {
   const handleJoinGame = async () => {
     if (!roomIdInput.trim()) return;
     try {
-      const client = new Colyseus.Client(`ws://${window.location.hostname}:2567`);
+      const client = new Colyseus.Client(SERVER_URL);
       const r = await client.joinById(roomIdInput.trim());
       setupRoom(r);
     } catch (e) {
