@@ -357,12 +357,13 @@ export default function App() {
             ))}
 
             {/* Oggetti e Porte (Visibili solo se la tessera corrispondente è esplorata) */}
-            {Object.entries(interactions)
-              .filter(([id, spot]) => {
-                const parentTile = Object.values(tiles).find(t => Math.abs(t.x - spot.x) <= 75 && Math.abs(t.y - spot.y) <= 75);
-                return parentTile && (parentTile.explored || currentPlayer.currentTile === parentTile.id);
-              })
-              .map(([id, spot]) => (
+{Object.entries(interactions)
+  .filter(([id, spot]) => {
+    // Aumentato a 110 per includere le porte posizionate a 100px dal centro (a metà tra le stanze)
+    const parentTile = Object.values(tiles).find(t => Math.abs(t.x - spot.x) <= 110 && Math.abs(t.y - spot.y) <= 110);
+    return parentTile && (parentTile.explored || currentPlayer.currentTile === parentTile.id);
+  })
+  .map(([id, spot]) => (
                 <div
                   key={id}
                   onClick={(e) => {
