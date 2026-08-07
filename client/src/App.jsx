@@ -1,8 +1,3 @@
-Ecco una versione completamente ridisegnata di **`App.jsx`**.
-
-Ho applicato un'estetica in stile **dark-horror / board game** (ispirata proprio alle atmosfere di *Le Case della Follia*): palette cromatica basata su toni scuri profondi, rosso sangue, dettagli color oro antico, ombre morbide (`box-shadow`), bordi rifiniti e una spaziatura pulita per dare l'effetto di un'applicazione professionale.
-
-```jsx
 import { useState, useRef, useEffect } from 'react';
 import * as Colyseus from "@colyseus/sdk";
 
@@ -84,7 +79,6 @@ export default function App() {
     });
   };
 
-  // --- Gestione Input (Touch/Mouse) ---
   const handleTouchStart = (e) => {
     if (e.touches.length === 1) {
       setIsDragging(true);
@@ -108,7 +102,6 @@ export default function App() {
   const handleMouseMove = (e) => { if (isDragging) setCamera(prev => ({ ...prev, x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })); };
   const handleWheel = (e) => setCamera(prev => ({ ...prev, zoom: Math.min(Math.max(prev.zoom - e.deltaY * 0.001, 0.4), 2.5) }));
 
-  // --- Render: Menu Principale ---
   if (view === 'menu') return (
     <div style={styles.screenCenter}>
       <div style={styles.card}>
@@ -137,7 +130,6 @@ export default function App() {
     </div>
   );
 
-  // --- Render: Setup Partita ---
   if (view === 'setup') return (
     <div style={styles.screenCenter}>
       <div style={styles.card}>
@@ -165,11 +157,8 @@ export default function App() {
   const currentPlayer = players[clientId] || {};
   const isMyTurn = activePlayerId === clientId && currentPhase === "investigators";
 
-  // --- Render: Schermata di Gioco ---
   return (
     <div style={styles.gameContainer}>
-      
-      {/* HUD Superiore */}
       <div style={styles.hudBar}>
         <div style={styles.hudItem}>
           Stanza: <code style={styles.codeBadge}>{room?.roomId}</code>
@@ -191,7 +180,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Mappa / Viewport */}
       <div 
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={() => setIsDragging(false)} onMouseLeave={() => setIsDragging(false)}
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={() => touchStartDist.current = null}
@@ -204,7 +192,6 @@ export default function App() {
           transformOrigin: '0 0'
         }}>
           
-          {/* Tessere */}
           {Object.entries(tiles).map(([id, tile]) => {
             if (!tile.explored && currentPlayer.currentTile !== id) return null;
             const isCurrent = currentPlayer.currentTile === id;
@@ -230,7 +217,6 @@ export default function App() {
             );
           })}
 
-          {/* Interazioni */}
           {Object.entries(interactions).map(([id, spot]) => {
             const isVisible = (tiles[spot.tileAId]?.explored) || (tiles[spot.tileBId]?.explored);
             if (!isVisible) return null;
@@ -254,7 +240,6 @@ export default function App() {
             );
           })}
 
-          {/* Giocatori */}
           {Object.entries(players).map(([id, p]) => (
             <div key={id}
               style={{
@@ -279,7 +264,6 @@ export default function App() {
         </div>
       </div>
       
-      {/* Barra Inferiore Log & Azioni */}
       <div style={styles.footerBar}>
         <div style={styles.logBox}>
           <strong style={{ color: '#d4ac0d' }}>Cronaca:</strong> {gameMessage}
@@ -294,7 +278,6 @@ export default function App() {
   );
 }
 
-// --- Fogli di Stile In Linea Tematici ---
 const styles = {
   screenCenter: {
     background: '#0d0d0f',
@@ -495,5 +478,3 @@ const styles = {
     whiteSpace: 'nowrap'
   }
 };
-
-```
