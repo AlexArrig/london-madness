@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import * as Colyseus from "@colyseus/sdk";
 
-// Configurazione automatica dell'endpoint:
-// Se siamo su localhost usa il server locale, altrimenti punta a Render (wss://)
+// Configurazione automatica dell'endpoint
 const SERVER_URL = window.location.hostname === 'localhost' 
   ? "ws://localhost:2567" 
   : "wss://london-madness.onrender.com";
@@ -91,7 +90,23 @@ export default function App() {
     });
   };
 
-  // Pan & Zoom handlers
+  // Pan & Zoom handlers (Supporto sia Mouse che Touch)
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.touches[0].clientX - camera.x, y: e.touches[0].clientY - camera.y });
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    setCamera(prev => ({
+      ...prev,
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y
+    }));
+  };
+
   const handleMouseDown = (e) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX - camera.x, y: e.clientY - camera.y });
@@ -113,8 +128,8 @@ export default function App() {
     const zoomIntensity = 0.1;
     setCamera(prev => {
       let newZoom = prev.zoom - Math.sign(e.deltaY) * zoomIntensity;
-      if (newZoom < 0.5) newZoom = 0.5;
-      if (newZoom > 2) newZoom = 2;
+      if (newZoom < 0.4) newZoom = 0.4;
+      if (newZoom > 2.5) newZoom = 2.5;
       return { ...prev, zoom: newZoom };
     });
   };
@@ -122,15 +137,15 @@ export default function App() {
   // --- MENU PRINCIPALE ---
   if (view === 'menu') {
     return (
-      <div style={{ background: '#121212', color: '#fff', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-        <h1 style={{ color: '#e74c3c', marginBottom: '5px' }}>Le Case della Follia</h1>
-        <p style={{ color: '#888', marginBottom: '35px' }}>App Companion</p>
+      <div style={{ background: '#121212', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', padding: '20px', boxSizing: 'border-box' }}>
+        <h1 style={{ color: '#e74c3c', marginBottom: '5px', textAlign: 'center', fontSize: 'clamp(1.5rem, 5vw, 2.5rem)' }}>Le Case della Follia</h1>
+        <p style={{ color: '#888', marginBottom: '35px', textAlign: 'center' }}>App Companion</p>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '320px', background: '#1a1a1a', padding: '30px', borderRadius: '8px', border: '1px solid #333' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '320px', background: '#1a1a1a', padding: '30px', borderRadius: '8px', border: '1px solid #333', boxSizing: 'border-box' }}>
           
           <button 
             onClick={() => setView('setup')} 
-            style={{ padding: '12px', background: '#c0392b', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '15px', cursor: 'pointer', fontWeight: 'bold' }}
+            style={{ padding: '14px', background: '#c0392b', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '15px', cursor: 'pointer', fontWeight: 'bold' }}
           >
             Crea Nuova Partita
           </button>
@@ -139,17 +154,17 @@ export default function App() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ fontSize: '13px', color: '#aaa' }}>Unisciti con ID Stanza:</span>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <input 
                 type="text" 
                 placeholder="Inserisci ID Stanza" 
                 value={roomIdInput} 
                 onChange={(e) => setRoomIdInput(e.target.value)} 
-                style={{ padding: '10px', background: '#111', color: '#fff', border: '1px solid #444', borderRadius: '5px', flex: 1 }} 
+                style={{ padding: '12px', background: '#111', color: '#fff', border: '1px solid #444', borderRadius: '5px', flex: 1, minWidth: '140px' }} 
               />
               <button 
                 onClick={handleJoinGame} 
-                style={{ padding: '10px 14px', background: '#2980b9', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
+                style={{ padding: '12px 16px', background: '#2980b9', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
               >
                 Entra
               </button>
@@ -164,10 +179,10 @@ export default function App() {
   // --- SCHERMATA CONFIGURAZIONE PARTITA ---
   if (view === 'setup') {
     return (
-      <div style={{ background: '#121212', color: '#fff', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-        <h1 style={{ color: '#e74c3c', marginBottom: '15px' }}>Configurazione Indagine</h1>
+      <div style={{ background: '#121212', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', padding: '20px', boxSizing: 'border-box' }}>
+        <h1 style={{ color: '#e74c3c', marginBottom: '15px', textAlign: 'center', fontSize: 'clamp(1.3rem, 4vw, 2rem)' }}>Configurazione Indagine</h1>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '340px', background: '#1a1a1a', padding: '30px', borderRadius: '8px', border: '1px solid #333' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '340px', background: '#1a1a1a', padding: '30px', borderRadius: '8px', border: '1px solid #333', boxSizing: 'border-box' }}>
           
           {/* Difficoltà */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -175,7 +190,7 @@ export default function App() {
             <input 
               type="range" min="1" max="5" value={difficulty} 
               onChange={(e) => setDifficulty(parseInt(e.target.value))}
-              style={{ accentColor: '#e74c3c', cursor: 'pointer' }}
+              style={{ accentColor: '#e74c3c', cursor: 'pointer', width: '100%' }}
             />
           </div>
 
@@ -185,20 +200,20 @@ export default function App() {
             <input 
               type="range" min="1" max="5" value={maxPlayers} 
               onChange={(e) => setMaxPlayers(parseInt(e.target.value))}
-              style={{ accentColor: '#2980b9', cursor: 'pointer' }}
+              style={{ accentColor: '#2980b9', cursor: 'pointer', width: '100%' }}
             />
           </div>
 
           <button 
             onClick={handleCreateGame} 
-            style={{ padding: '12px', background: '#27ae60', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '15px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}
+            style={{ padding: '14px', background: '#27ae60', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '15px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}
           >
             Crea e Ottieni ID
           </button>
 
           <button 
             onClick={() => setView('menu')} 
-            style={{ padding: '8px', background: 'transparent', color: '#aaa', border: 'none', cursor: 'pointer', fontSize: '13px' }}
+            style={{ padding: '10px', background: 'transparent', color: '#aaa', border: 'none', cursor: 'pointer', fontSize: '13px' }}
           >
             ← Indietro
           </button>
@@ -213,47 +228,52 @@ export default function App() {
   const isMyTurn = activePlayerId === clientId && currentPhase === "investigators";
 
   return (
-    <div style={{ background: '#121212', color: '#fff', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', overflow: 'hidden' }}>
+    <div style={{ background: '#121212', color: '#fff', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'sans-serif', overflow: 'hidden', padding: '10px', boxSizing: 'border-box' }}>
       
       {/* Barra superiore informazioni */}
-      <div style={{ marginBottom: '10px', display: 'flex', gap: '20px', alignItems: 'center', fontSize: '14px', background: '#1a1a1a', padding: '8px 15px', borderRadius: '6px', border: '1px solid #333' }}>
-        <div>Stanza ID: <code style={{ color: '#f1c40f', background: '#222', padding: '2px 6px', borderRadius: '4px', userSelect: 'all' }}>{room?.roomId}</code></div>
-        <div>Diff: {difficulty} | Max: {maxPlayers}</div>
+      <div style={{ width: '100%', maxWidth: '900px', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', background: '#1a1a1a', padding: '10px 15px', borderRadius: '6px', border: '1px solid #333', boxSizing: 'border-box' }}>
+        <div>ID: <code style={{ color: '#f1c40f', background: '#222', padding: '2px 6px', borderRadius: '4px', userSelect: 'all' }}>{room?.roomId}</code></div>
         <div style={{ color: isMyTurn ? '#2ecc71' : '#e74c3c', fontWeight: 'bold' }}>
           {currentPhase === "monsters" ? "⚠️ TURNO DEI MOSTRI" : (isMyTurn ? "🟢 È IL TUO TURNO" : "⏳ TURNO ALTRUI")}
         </div>
-        {isMyTurn && <div style={{ color: '#3498db' }}>Azioni rimaste: <strong>{currentPlayer.actionsLeft}</strong></div>}
+        {isMyTurn && <div style={{ color: '#3498db' }}>Azioni: <strong>{currentPlayer.actionsLeft}</strong></div>}
         <div style={{ color: '#f1c40f' }}>{currentPlayer.hasKey ? "🔑 Chiave" : "🔒 No Chiave"}</div>
       </div>
 
       {gameWon && (
-        <div style={{ background: '#27ae60', color: '#fff', padding: '10px 20px', borderRadius: '5px', marginBottom: '10px', fontWeight: 'bold', fontSize: '16px' }}>
+        <div style={{ background: '#27ae60', color: '#fff', padding: '8px 15px', borderRadius: '5px', fontWeight: 'bold', fontSize: '14px', textAlign: 'center', width: '100%', maxWidth: '900px', boxSizing: 'border-box' }}>
           🎉 SCENARIO COMPLETATO CON SUCCESSO!
         </div>
       )}
 
-      {/* Viewport mappa */}
+      {/* Viewport mappa (Fluida e Responsive) */}
       <div 
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleMouseUp}
         onWheel={handleWheel}
         style={{ 
-          width: '800px', 
-          height: '560px', 
+          flex: 1,
+          width: '100%', 
+          maxWidth: '900px',
+          margin: '10px 0',
           border: '2px solid #333', 
           borderRadius: '8px', 
           background: '#141414', 
           position: 'relative', 
           overflow: 'hidden',
-          cursor: isDragging ? 'grabbing' : 'grab'
+          cursor: isDragging ? 'grabbing' : 'grab',
+          touchAction: 'none'
         }}
       >
         <div style={{
           position: 'absolute',
-          top: '280px',
-          left: '400px',
+          top: '50%',
+          left: '50%',
           transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
           transformOrigin: '0 0',
           width: '0px',
@@ -353,14 +373,14 @@ export default function App() {
       </div>
 
       {/* Pannello inferiore con Log e Passa Turno */}
-      <div style={{ width: '800px', marginTop: '10px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-        <div style={{ flex: 1, padding: '10px 15px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '5px', fontSize: '13px', color: '#ddd' }}>
+      <div style={{ width: '100%', maxWidth: '900px', display: 'flex', gap: '10px', alignItems: 'center', boxSizing: 'border-box' }}>
+        <div style={{ flex: 1, padding: '10px 15px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '5px', fontSize: '12px', color: '#ddd', maxHeight: '60px', overflowY: 'auto' }}>
           <strong>Log:</strong> {gameMessage}
         </div>
         {isMyTurn && (
           <button 
             onClick={() => room.send("end_turn")}
-            style={{ padding: '12px 20px', background: '#e67e22', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ padding: '12px 16px', background: '#e67e22', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             Passa Turno
           </button>
