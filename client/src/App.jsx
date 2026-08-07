@@ -85,14 +85,15 @@ export default function App() {
           y: p.y, 
           id: p.id, 
           hasKey: p.hasKey, 
-          actionsLeft: p.actionsLeft 
+          actionsLeft: p.actionsLeft,
+          currentTile: p.currentTile 
         };
       });
       setPlayers(newPlayers);
 
       const newTiles = {};
       state.tiles.forEach((t, key) => {
-        newTiles[key] = { id: t.id, name: t.name, x: t.x, y: t.y };
+        newTiles[key] = { id: t.id, name: t.name, x: t.x, y: t.y, explored: t.explored };
       });
       setTiles(newTiles);
 
@@ -268,8 +269,8 @@ export default function App() {
   return (
     <div style={{ background: '#121212', color: '#fff', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', overflow: 'hidden', boxSizing: 'border-box' }}>
       
-      {/* Contenitore principale adattivo: pieno su Desktop (>=1024px), margini del 10% sopra e sotto su Mobile */}
-      <div style={{ width: '100%', height: '100%', maxWidth: '100%', '@media (min-width: 1024px)': { maxWidth: '100%' }, display: 'flex', flexDirection: 'column', padding: 'clamp(10px, 10vh, 10vh) clamp(10px, 2vw, 2vw)', boxSizing: 'border-box' }}>
+      {/* Contenitore principale: pieno su Desktop, ridotto con margini sopra/sotto su Mobile */}
+      <div style={{ width: '100%', height: '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', padding: 'clamp(10px, 10vh, 10vh) clamp(10px, 2vw, 2vw)', boxSizing: 'border-box' }}>
         
         {/* Barra superiore informazioni */}
         <div style={{ flexShrink: 0, width: '100%', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', background: '#1a1a1a', padding: '10px 15px', borderRadius: '6px', border: '1px solid #333', boxSizing: 'border-box', marginBottom: '8px' }}>
@@ -322,65 +323,72 @@ export default function App() {
             transformOrigin: '0 0'
           }}>
             
-            {/* Tessere */}
-            {Object.entries(tiles).map(([id, tile]) => (
-              <div
-                key={id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (room && isMyTurn) room.send("move_to_tile", { tileId: tile.id });
-                }}
-                style={{
-                  position: 'absolute',
-                  left: `${tile.x - 75}px`,
-                  top: `${tile.y - 75}px`,
-                  width: '150px',
-                  height: '150px',
-                  background: '#2c3e50',
-                  border: currentPlayer.currentTile === tile.id ? '3px solid #f1c40f' : '3px solid #e74c3c',
-                  borderRadius: '6px',
-                  cursor: isMyTurn ? 'pointer' : 'default',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
-                  zIndex: 1
-                }}
-              >
-                <span style={{ fontSize: '12px', color: '#ecf0f1', fontWeight: 'bold', textAlign: 'center', padding: '4px' }}>
-                  {tile.name}
-                </span>
-              </div>
+            {/* Tessere (Mostrate solo se esplorate/accessibili) */}
+            {Object.entries(tiles)
+              .filter(([id, tile]) => tile.explored || currentPlayer.currentTile === id)
+              .map(([id, tile]) => (
+                <div
+                  key={id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (room && isMyTurn) room.send("move_to_tile", { tileId: tile.id });
+                  }}
+                  style={{
+                    position: 'absolute',
+                    left: `${tile.x - 75}px`,
+                    top: `${tile.y - 75}px`,
+                    width: '150px',
+                    height: '150px',
+                    background: '#2c3e50',
+                    border: currentPlayer.currentTile === tile.id ? '3px solid #f1c40f' : '3px solid #e74c3c',
+                    borderRadius: '6px',
+                    cursor: isMyTurn ? 'pointer' : 'default',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
+                    zIndex: 1
+                  }}
+                >
+                  <span style={{ fontSize: '12px', color: '#ecf0f1', fontWeight: 'bold', textAlign: 'center', padding: '4px' }}>
+                    {tile.name}
+                  </span>
+                </div>
             ))}
 
-            {/* Oggetti e Porte */}
-            {Object.entries(interactions).map(([id, spot]) => (
-              <div
-                key={id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (room && isMyTurn) room.send("interact", { spotId: id });
-                }}
-                style={{
-                  position: 'absolute',
-                  left: `${spot.x - 15}px`,
-                  top: `${spot.y - 15}px`,
-                  width: '30px',
-                  height: '30px',
-                  borderRadius: '50%',
-                  background: spot.type === 'door' ? (spot.state === 'open' ? '#27ae60' : '#c0392b') : (spot.state === 'explored' ? '#7f8c8d' : '#f1c40f'),
-                  border: '2px solid #fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  cursor: isMyTurn ? 'pointer' : 'default',
-                  zIndex: 2
-                }}
-                title={`${spot.type} (${spot.state})`}
-              >
-                {spot.type === 'door' ? '🚪' : '🔍'}
-              </div>
+            {/* Oggetti e Porte (Visibili solo se la tessera corrispondente è esplorata) */}
+            {Object.entries(interactions)
+              .filter(([id, spot]) => {
+                const parentTile = Object.values(tiles).find(t => Math.abs(t.x - spot.x) <= 75 && Math.abs(t.y - spot.y) <= 75);
+                return parentTile && (parentTile.explored || currentPlayer.currentTile === parentTile.id);
+              })
+              .map(([id, spot]) => (
+                <div
+                  key={id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (room && isMyTurn) room.send("interact", { spotId: id });
+                  }}
+                  style={{
+                    position: 'absolute',
+                    left: `${spot.x - 15}px`,
+                    top: `${spot.y - 15}px`,
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    background: spot.type === 'door' ? (spot.state === 'open' ? '#27ae60' : '#c0392b') : (spot.state === 'explored' ? '#7f8c8d' : '#f1c40f'),
+                    border: '2px solid #fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    cursor: isMyTurn ? 'pointer' : 'default',
+                    zIndex: 2
+                  }}
+                  title={`${spot.type} (${spot.state})`}
+                >
+                  {spot.type === 'door' ? '🚪' : '🔍'}
+                </div>
             ))}
 
             {/* Giocatori */}
