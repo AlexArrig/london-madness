@@ -1,5 +1,5 @@
 import config from "@colyseus/tools";
-import { GameRoom } from "./rooms/GameRoom";
+import { GameRoom } from "./rooms/GameRoom.js";
 
 export default config({
   initializeGameServer: (gameServer) => {

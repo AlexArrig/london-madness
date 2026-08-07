@@ -41,7 +41,7 @@ class MadnessState extends Schema {
 export class GameRoom extends Room<MadnessState> {
   
   onCreate(options: any) {
-    this.setState(new MadnessState());
+    this.setState(new MadnessState() as any);
     
     // Configura la capienza massima scelta dal creatore (da 1 a 5, default 4)
     const max = options.maxPlayers ? parseInt(options.maxPlayers, 10) : 4;
@@ -78,7 +78,7 @@ export class GameRoom extends Room<MadnessState> {
       const midX = (currentTile.x + targetTile.x) / 2;
       const midY = (currentTile.y + targetTile.y) / 2;
 
-      this.state.interactions.forEach((spot) => {
+      this.state.interactions.forEach((spot: any) => {
         if (spot.type === "door" && spot.x === midX && spot.y === midY && spot.state !== "open") {
           canPass = false;
         }
@@ -184,7 +184,7 @@ export class GameRoom extends Room<MadnessState> {
       this.state.activePlayerId = nextId;
       const nextPlayer = this.state.players.get(nextId);
       if (nextPlayer) nextPlayer.actionsLeft = 2;
-      this.state.gameMessage = `È il turno del giocatore ${nextId.substring(0, 4)} (2 azioni).`;
+      this.state.gameMessage = `È il turno del giocatore ${(nextId as string).substring(0, 4)} (2 azioni disponibili).`;
     } else {
       this.triggerMonsterPhase();
     }
