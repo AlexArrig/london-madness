@@ -102,6 +102,51 @@ export default function App() {
   const handleMouseMove = (e) => { if (isDragging) setCamera(prev => ({ ...prev, x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })); };
   const handleWheel = (e) => setCamera(prev => ({ ...prev, zoom: Math.min(Math.max(prev.zoom - e.deltaY * 0.001, 0.4), 2.5) }));
 
+  // Funzione per forzare il posizionamento esatto delle interazioni/porte sui bordi delle tessere
+  const getDoorPosition = (spot, tiles) => {
+    const tA = tiles[spot.tileAId];
+    const tB = tiles[spot.tileBId];
+    
+    const anchor = tA?.explored ? tA : (tB?.explored ? tB : tA || tB);
+    if (!anchor) return { x: spot.x, y: spot.y };
+
+    const ax = anchor.x;
+    const ay = anchor.y;
+    const aw = anchor.width * 200;
+    const ah = anchor.height * 200;
+
+    if (tA && tB) {
+      const bx = tB.x;
+      const by = tB.y;
+      const bw = tB.width * 200;
+      const bh = tB.height * 200;
+
+      if (Math.abs((ax + aw) - bx) < 5) {
+        return { x: bx, y: (Math.max(ay, by) + Math.min(ay + ah, by + bh)) / 2 };
+      }
+      if (Math.abs((bx + bw) - ax) < 5) {
+        return { x: ax, y: (Math.max(ay, by) + Math.min(ay + ah, by + bh)) / 2 };
+      }
+      if (Math.abs((ay + ah) - by) < 5) {
+        return { x: (Math.max(ax, bx) + Math.min(ax + aw, bx + bw)) / 2, y: by };
+      }
+      if (Math.abs((by + bh) - ay) < 5) {
+        return { x: (Math.max(ax, bx) + Math.min(ax + aw, bx + bw)) / 2, y: ay };
+      }
+    }
+
+    const distLeft = Math.abs(spot.x - ax);
+    const distRight = Math.abs(spot.x - (ax + aw));
+    const distTop = Math.abs(spot.y - ay);
+    const distBottom = Math.abs(spot.y - (ay + ah));
+    const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+
+    if (minDist === distLeft) return { x: ax, y: Math.max(ay, Math.min(ay + ah, spot.y)) };
+    if (minDist === distRight) return { x: ax + aw, y: Math.max(ay, Math.min(ay + ah, spot.y)) };
+    if (minDist === distTop) return { x: Math.max(ax, Math.min(ax + aw, spot.x)), y: ay };
+    return { x: Math.max(ax, Math.min(ax + aw, spot.x)), y: ay + ah };
+  };
+
   if (view === 'menu') return (
     <div style={styles.screenCenter}>
       <div style={styles.card}>
@@ -220,12 +265,15 @@ export default function App() {
           {Object.entries(interactions).map(([id, spot]) => {
             const isVisible = (tiles[spot.tileAId]?.explored) || (tiles[spot.tileBId]?.explored);
             if (!isVisible) return null;
+            
+            const pos = getDoorPosition(spot, tiles);
+
             return (
               <div key={id} onClick={(e) => { e.stopPropagation(); room.send("interact", { spotId: id }); }}
                 style={{
                   position: 'absolute',
-                  left: `${spot.x - 16}px`,
-                  top: `${spot.y - 16}px`,
+                  left: `${pos.x - 16}px`,
+                  top: `${pos.y - 16}px`,
                   width: '32px', height: '32px', borderRadius: '50%',
                   background: spot.type === 'door' ? (spot.state === 'open' ? '#27ae60' : '#c0392b') : '#d4ac0d',
                   border: '2px solid #fff', 
