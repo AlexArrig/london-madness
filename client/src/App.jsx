@@ -1,3 +1,8 @@
+Ecco una versione completamente ridisegnata di **`App.jsx`**.
+
+Ho applicato un'estetica in stile **dark-horror / board game** (ispirata proprio alle atmosfere di *Le Case della Follia*): palette cromatica basata su toni scuri profondi, rosso sangue, dettagli color oro antico, ombre morbide (`box-shadow`), bordi rifiniti e una spaziatura pulita per dare l'effetto di un'applicazione professionale.
+
+```jsx
 import { useState, useRef, useEffect } from 'react';
 import * as Colyseus from "@colyseus/sdk";
 
@@ -103,45 +108,95 @@ export default function App() {
   const handleMouseMove = (e) => { if (isDragging) setCamera(prev => ({ ...prev, x: e.clientX - dragStart.x, y: e.clientY - dragStart.y })); };
   const handleWheel = (e) => setCamera(prev => ({ ...prev, zoom: Math.min(Math.max(prev.zoom - e.deltaY * 0.001, 0.4), 2.5) }));
 
-  // --- Render ---
+  // --- Render: Menu Principale ---
   if (view === 'menu') return (
-    <div style={{ background: '#121212', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <h1>Le Case della Follia</h1>
-      <button onClick={() => setView('setup')} style={{ padding: '15px 30px', background: '#c0392b', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Crea Partita</button>
-      <div style={{ marginTop: '20px' }}>
-        <input placeholder="ID Stanza" value={roomIdInput} onChange={(e) => setRoomIdInput(e.target.value)} style={{ padding: '10px' }} />
-        <button onClick={handleJoinGame} style={{ padding: '10px', marginLeft: '5px' }}>Entra</button>
+    <div style={styles.screenCenter}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>Le Case della Follia</h1>
+        <p style={styles.subtitle}>Companion App</p>
+        
+        <button onClick={() => setView('setup')} style={styles.primaryButton}>
+          Crea Nuova Partita
+        </button>
+
+        <div style={styles.divider} />
+
+        <div style={styles.inputGroup}>
+          <span style={styles.label}>Unisciti a una stanza esistente</span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input 
+              placeholder="Inserisci ID Stanza" 
+              value={roomIdInput} 
+              onChange={(e) => setRoomIdInput(e.target.value)} 
+              style={styles.input} 
+            />
+            <button onClick={handleJoinGame} style={styles.secondaryButton}>Entra</button>
+          </div>
+        </div>
       </div>
     </div>
   );
 
+  // --- Render: Setup Partita ---
   if (view === 'setup') return (
-    <div style={{ background: '#121212', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <h1>Configurazione</h1>
-      <label>Difficoltà: {difficulty}</label>
-      <input type="range" min="1" max="5" value={difficulty} onChange={(e) => setDifficulty(parseInt(e.target.value))} />
-      <button onClick={handleCreateGame} style={{ marginTop: '20px', padding: '15px' }}>Crea Stanza</button>
+    <div style={styles.screenCenter}>
+      <div style={styles.card}>
+        <h1 style={styles.setupTitle}>Configurazione Indagine</h1>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+          <label style={styles.label}>Difficoltà (1-5): <strong style={{ color: '#e74c3c' }}>{difficulty}</strong></label>
+          <input 
+            type="range" min="1" max="5" value={difficulty} 
+            onChange={(e) => setDifficulty(parseInt(e.target.value))} 
+            style={styles.rangeInput}
+          />
+        </div>
+
+        <button onClick={handleCreateGame} style={{ ...styles.primaryButton, background: '#27ae60', marginTop: '10px' }}>
+          Avvia Indagine
+        </button>
+        <button onClick={() => setView('menu')} style={styles.textButton}>
+          ← Torna al Menu
+        </button>
+      </div>
     </div>
   );
 
   const currentPlayer = players[clientId] || {};
   const isMyTurn = activePlayerId === clientId && currentPhase === "investigators";
 
+  // --- Render: Schermata di Gioco ---
   return (
-    <div style={{ background: '#121212', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={styles.gameContainer}>
       
-      {/* HUD */}
-      <div style={{ padding: '10px', background: '#1a1a1a', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between' }}>
-        <div>ID: {room?.roomId} | Azioni: {currentPlayer.actionsLeft || 0}</div>
-        <div style={{ color: isMyTurn ? '#2ecc71' : '#e74c3c' }}>{currentPhase === "monsters" ? "⚠️ TURNO MOSTRI" : (isMyTurn ? "🟢 TUO TURNO" : "⏳ TURNO ALTRUI")}</div>
+      {/* HUD Superiore */}
+      <div style={styles.hudBar}>
+        <div style={styles.hudItem}>
+          Stanza: <code style={styles.codeBadge}>{room?.roomId}</code>
+        </div>
+        <div style={{ ...styles.hudItem, color: isMyTurn ? '#2ecc71' : '#e74c3c', fontWeight: 'bold' }}>
+          {currentPhase === "monsters" ? "⚠️ TURNO DEI MOSTRI" : (isMyTurn ? "🟢 TUO TURNO" : "⏳ TURNO ALTRUI")}
+        </div>
+        <div style={styles.hudItem}>
+          Azioni: <span style={{ color: '#3498db', fontWeight: 'bold' }}>{currentPlayer.actionsLeft || 0}</span>
+        </div>
+        <div style={styles.hudItem}>
+          Stato: <span style={{ color: currentPlayer.hasKey ? '#f1c40f' : '#95a5a6' }}>{currentPlayer.hasKey ? "🔑 Con Chiave" : "🔒 Senza Chiave"}</span>
+        </div>
       </div>
 
-      {/* Mappa */}
+      {gameWon && (
+        <div style={styles.winBanner}>
+          🎉 SCENARIO COMPLETATO CON SUCCESSO!
+        </div>
+      )}
+
+      {/* Mappa / Viewport */}
       <div 
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={() => setIsDragging(false)} onMouseLeave={() => setIsDragging(false)}
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={() => touchStartDist.current = null}
         onWheel={handleWheel}
-        style={{ flex: 1, position: 'relative', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+        style={{ ...styles.viewport, cursor: isDragging ? 'grabbing' : 'grab' }}
       >
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
@@ -152,39 +207,50 @@ export default function App() {
           {/* Tessere */}
           {Object.entries(tiles).map(([id, tile]) => {
             if (!tile.explored && currentPlayer.currentTile !== id) return null;
+            const isCurrent = currentPlayer.currentTile === id;
             return (
-              <div key={id} onClick={() => room.send("move_to_tile", { tileId: id })}
+              <div key={id} onClick={(e) => { e.stopPropagation(); room.send("move_to_tile", { tileId: id }); }}
                 style={{
                   position: 'absolute',
                   left: `${tile.x}px`,
                   top: `${tile.y}px`,
                   width: `${tile.width * 200}px`,
                   height: `${tile.height * 200}px`,
-                  background: '#2c3e50',
-                  border: currentPlayer.currentTile === id ? '3px solid #f1c40f' : '1px solid #444',
-                  borderRadius: '4px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1
+                  background: isCurrent ? 'linear-gradient(135deg, #243342 0%, #1a252f 100%)' : '#1e272e',
+                  border: isCurrent ? '3px solid #f1c40f' : '2px solid #3d3d3d',
+                  borderRadius: '8px',
+                  boxShadow: '0 8px 16px rgba(0,0,0,0.5)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  zIndex: 1,
+                  transition: 'background 0.2s, border 0.2s'
                 }}
-              >{tile.name}</div>
+              >
+                <span style={styles.tileText}>{tile.name}</span>
+              </div>
             );
           })}
 
           {/* Interazioni */}
           {Object.entries(interactions).map(([id, spot]) => {
-            // Logica visibilità: mostra solo se la stanza è esplorata
             const isVisible = (tiles[spot.tileAId]?.explored) || (tiles[spot.tileBId]?.explored);
             if (!isVisible) return null;
             return (
-              <div key={id} onClick={() => room.send("interact", { spotId: id })}
+              <div key={id} onClick={(e) => { e.stopPropagation(); room.send("interact", { spotId: id }); }}
                 style={{
                   position: 'absolute',
-                  left: `${spot.x - 15}px`,
-                  top: `${spot.y - 15}px`,
-                  width: '30px', height: '30px', borderRadius: '50%',
-                  background: spot.type === 'door' ? (spot.state === 'open' ? '#27ae60' : '#c0392b') : '#f1c40f',
-                  border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2
+                  left: `${spot.x - 16}px`,
+                  top: `${spot.y - 16}px`,
+                  width: '32px', height: '32px', borderRadius: '50%',
+                  background: spot.type === 'door' ? (spot.state === 'open' ? '#27ae60' : '#c0392b') : '#d4ac0d',
+                  border: '2px solid #fff', 
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  fontSize: '14px', zIndex: 2
                 }}
-              >{spot.type === 'door' ? '🚪' : '🔍'}</div>
+                title={`${spot.type} (${spot.state})`}
+              >
+                {spot.type === 'door' ? '🚪' : '🔍'}
+              </div>
             );
           })}
 
@@ -197,20 +263,237 @@ export default function App() {
                 top: `${p.y - 18}px`,
                 width: '36px', height: '36px', borderRadius: '50%',
                 background: id === clientId ? '#d35400' : '#2980b9',
-                border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3,
+                border: '2px solid #fff', 
+                boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                fontSize: '11px', fontWeight: 'bold', color: '#fff',
+                zIndex: 3,
                 transition: 'left 0.4s ease-in-out, top 0.4s ease-in-out'
               }}
-            >{id.substring(0, 2).toUpperCase()}</div>
+              title={`Investigatore ${id}`}
+            >
+              {id.substring(0, 2).toUpperCase()}
+            </div>
           ))}
 
         </div>
       </div>
       
-      {/* Log */}
-      <div style={{ padding: '10px', background: '#000', fontSize: '12px' }}>
-        Log: {gameMessage}
-        {isMyTurn && <button onClick={() => room.send("end_turn")} style={{ marginLeft: '10px' }}>Passa Turno</button>}
+      {/* Barra Inferiore Log & Azioni */}
+      <div style={styles.footerBar}>
+        <div style={styles.logBox}>
+          <strong style={{ color: '#d4ac0d' }}>Cronaca:</strong> {gameMessage}
+        </div>
+        {isMyTurn && (
+          <button onClick={() => room.send("end_turn")} style={styles.endTurnButton}>
+            Passa Turno
+          </button>
+        )}
       </div>
     </div>
   );
 }
+
+// --- Fogli di Stile In Linea Tematici ---
+const styles = {
+  screenCenter: {
+    background: '#0d0d0f',
+    color: '#f5f5f7',
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    padding: '20px',
+    boxSizing: 'border-box'
+  },
+  card: {
+    background: '#16161a',
+    border: '1px solid #2a2a35',
+    borderRadius: '12px',
+    padding: '35px',
+    width: '100%',
+    maxWidth: '380px',
+    boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+    boxSizing: 'border-box'
+  },
+  title: {
+    color: '#c0392b',
+    fontSize: '24px',
+    fontWeight: '800',
+    textAlign: 'center',
+    margin: '0',
+    letterSpacing: '0.5px'
+  },
+  setupTitle: {
+    color: '#f5f5f7',
+    fontSize: '20px',
+    fontWeight: '700',
+    textAlign: 'center',
+    margin: '0 0 10px 0'
+  },
+  subtitle: {
+    color: '#8e8e93',
+    fontSize: '13px',
+    textAlign: 'center',
+    marginTop: '-15px',
+    marginBottom: '10px',
+    textTransform: 'uppercase',
+    letterSpacing: '2px'
+  },
+  primaryButton: {
+    background: '#8b0000',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '14px',
+    fontSize: '15px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(139, 0, 0, 0.4)',
+    transition: 'background 0.2s'
+  },
+  secondaryButton: {
+    background: '#2980b9',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px 18px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    cursor: 'pointer'
+  },
+  textButton: {
+    background: 'transparent',
+    color: '#8e8e93',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '13px',
+    marginTop: '5px'
+  },
+  inputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  label: {
+    fontSize: '13px',
+    color: '#aeaeb2'
+  },
+  input: {
+    background: '#0d0d0f',
+    color: '#fff',
+    border: '1px solid #3a3a3c',
+    borderRadius: '8px',
+    padding: '12px',
+    fontSize: '14px',
+    flex: 1,
+    outline: 'none'
+  },
+  rangeInput: {
+    accentColor: '#c0392b',
+    cursor: 'pointer',
+    width: '100%',
+    height: '6px'
+  },
+  divider: {
+    borderTop: '1px solid #2a2a35',
+    margin: '5px 0'
+  },
+  gameContainer: {
+    background: '#0a0a0c',
+    color: '#f5f5f7',
+    height: '100vh',
+    width: '100vw',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+  },
+  hudBar: {
+    background: '#16161a',
+    borderBottom: '1px solid #2a2a35',
+    padding: '12px 20px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: '13px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    zIndex: 10
+  },
+  hudItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+  codeBadge: {
+    background: '#0d0d0f',
+    color: '#f1c40f',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    border: '1px solid #2a2a35',
+    fontSize: '12px'
+  },
+  winBanner: {
+    background: '#27ae60',
+    color: '#fff',
+    padding: '10px',
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.2)'
+  },
+  viewport: {
+    flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+    background: '#111115',
+    touchAction: 'none'
+  },
+  tileText: {
+    fontSize: '13px',
+    color: '#d1d1d6',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    padding: '8px',
+    textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+  },
+  footerBar: {
+    background: '#16161a',
+    borderTop: '1px solid #2a2a35',
+    padding: '12px 20px',
+    display: 'flex',
+    gap: '15px',
+    alignItems: 'center',
+    boxSizing: 'border-box',
+    zIndex: 10
+  },
+  logBox: {
+    flex: 1,
+    background: '#0d0d0f',
+    border: '1px solid #2a2a35',
+    borderRadius: '8px',
+    padding: '10px 14px',
+    fontSize: '13px',
+    color: '#d1d1d6',
+    maxHeight: '50px',
+    overflowY: 'auto'
+  },
+  endTurnButton: {
+    background: '#d35400',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px 20px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(211, 84, 0, 0.4)',
+    whiteSpace: 'nowrap'
+  }
+};
+
+```
