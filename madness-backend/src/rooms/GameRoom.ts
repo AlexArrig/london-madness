@@ -14,8 +14,10 @@ class Tile extends Schema {
   @type("string") id: string = "";
   @type("number") x: number = 0;
   @type("number") y: number = 0;
+  @type("number") width: number = 1;
+  @type("number") height: number = 1;
   @type("string") name: string = "";
-  @type("boolean") explored: boolean = false; // Visibile per test
+  @type("boolean") explored: boolean = false;
 }
 
 class Player extends Schema {
@@ -65,21 +67,18 @@ export class GameRoom extends Room<any> {
         return;
       }
 
-      const dx = Math.abs(targetTile.x - currentTile.x);
-      const dy = Math.abs(targetTile.y - currentTile.y);
-      const isAdjacent = (dx === 200 && dy === 0) || (dx === 0 && dy === 200);
-
-      if (!isAdjacent) {
+      if (!this.areRoomsAdjacent(currentTile, targetTile)) {
         this.state.gameMessage = "Puoi muoverti solo verso stanze adiacenti!";
         return;
       }
 
       let canPass = true;
+      // Controlla se c'è una porta sbarrata tra le due stanze
       const midX = (currentTile.x + targetTile.x) / 2;
       const midY = (currentTile.y + targetTile.y) / 2;
 
       this.state.interactions.forEach((spot: any) => {
-        if (spot.type === "door" && spot.x === midX && spot.y === midY && spot.state !== "open") {
+        if (spot.type === "door" && Math.abs(spot.x - (currentTile.x + targetTile.x)/2) <= 150 && Math.abs(spot.y - (currentTile.y + targetTile.y)/2) <= 150 && spot.state !== "open") {
           canPass = false;
         }
       });
@@ -89,11 +88,13 @@ export class GameRoom extends Room<any> {
         return;
       }
 
-      player.x = targetTile.x - 25;
-      player.y = targetTile.y;
+      player.x = targetTile.x - 25 + (targetTile.width * 100);
+      player.y = targetTile.y + (targetTile.height * 100);
       player.currentTile = targetTile.id;
       player.actionsLeft -= 1;
+      
       targetTile.explored = true;
+
       this.state.gameMessage = `Movimento completato. Azioni rimanenti: ${player.actionsLeft}`;
 
       if (targetTile.id !== "tile_0" && targetTile.id !== "tile_final") {
@@ -102,8 +103,8 @@ export class GameRoom extends Room<any> {
           const searchSpot = new InteractionSpot();
           searchSpot.id = searchId;
           searchSpot.type = "search";
-          searchSpot.x = targetTile.x + 35;
-          searchSpot.y = targetTile.y;
+          searchSpot.x = targetTile.x + (targetTile.width * 100);
+          searchSpot.y = targetTile.y + (targetTile.height * 100);
           searchSpot.state = "unsearched";
           this.state.interactions.set(searchSpot.id, searchSpot);
         }
@@ -153,6 +154,23 @@ export class GameRoom extends Room<any> {
       if (!this.isPlayerTurn(client.sessionId)) return;
       this.nextPlayerTurn();
     });
+  }
+
+  private areRoomsAdjacent(t1: Tile, t2: Tile): boolean {
+    const t1MinX = t1.x;
+    const t1MaxX = t1.x + t1.width * 200;
+    const t1MinY = t1.y;
+    const t1MaxY = t1.y + t1.height * 200;
+
+    const t2MinX = t2.x;
+    const t2MaxX = t2.x + t2.width * 200;
+    const t2MinY = t2.y;
+    const t2MaxY = t2.y + t2.height * 200;
+
+    const touchX = (t1MaxX === t2MinX || t2MaxX === t1MinX) && (Math.max(t1MinY, t2MinY) < Math.min(t1MaxY, t2MaxY));
+    const touchY = (t1MaxY === t2MinY || t2MaxY === t1MinY) && (Math.max(t1MinX, t2MinX) < Math.min(t1MaxX, t2MaxX));
+
+    return touchX || touchY;
   }
 
   private isPlayerTurn(sessionId: string): boolean {
@@ -240,7 +258,28 @@ export class GameRoom extends Room<any> {
 
   private generateMansionLayout(difficulty: number) {
     const TILE_SIZE = 200;
-    const occupiedCoords = new Map<string, string>();
+    const occupiedCells = new Set<string>();
+
+    const canPlaceRoom = (x: number, y: number, w: number, h: number) => {
+      for (let i = 0; i < w; i++) {
+        for (let j = 0; j < h; j++) {
+          const cx = x + i * TILE_SIZE;
+          const cy = y + j * TILE_SIZE;
+          if (occupiedCells.has(`${cx},${cy}`)) return false;
+        }
+      }
+      return true;
+    };
+
+    const occupyRoomCells = (x: number, y: number, w: number, h: number) => {
+      for (let i = 0; i < w; i++) {
+        for (let j = 0; j < h; j++) {
+          const cx = x + i * TILE_SIZE;
+          const cy = y + j * TILE_SIZE;
+          occupiedCells.add(`${cx},${cy}`);
+        }
+      }
+    };
 
     // 1. Stanza Iniziale
     const t0 = new Tile();
@@ -248,84 +287,119 @@ export class GameRoom extends Room<any> {
     t0.name = "Hall d'Ingresso";
     t0.x = 0; 
     t0.y = 0; 
+    t0.width = 1;
+    t0.height = 1;
     t0.explored = true;
     this.state.tiles.set(t0.id, t0);
-    occupiedCoords.set("0,0", "tile_0");
+    occupyRoomCells(0, 0, 1, 1);
 
-    const roomsList = [{ id: "tile_0", x: 0, y: 0 }];
-    const totalRooms = difficulty * 2 + 3;
+    const roomsList = [{ id: "tile_0", x: 0, y: 0, width: 1, height: 1 }];
+    
+    // La difficoltà aumenta il numero di stanze e la ramificazione
+    const totalRooms = difficulty * 3 + 5;
+    
+    const possibleSizes = [
+      { w: 1, h: 1 },
+      { w: 1, h: 2 },
+      { w: 2, h: 1 },
+      { w: 2, h: 2 }
+    ];
+
     const directions = [
-      { dx: TILE_SIZE, dy: 0 },
-      { dx: -TILE_SIZE, dy: 0 },
-      { dx: 0, dy: TILE_SIZE },
-      { dx: 0, dy: -TILE_SIZE }
+      { dx: 1, dy: 0 },
+      { dx: -1, dy: 0 },
+      { dx: 0, dy: 1 },
+      { dx: 0, dy: -1 }
     ];
 
     let createdCount = 1;
+    let attempts = 0;
 
-    // 2. Generazione stanze intermedie con validazione
-    while (createdCount < totalRooms && roomsList.length > 0) {
-      const parent = roomsList[roomsList.length - 1];
+    while (createdCount < totalRooms && roomsList.length > 0 && attempts < 300) {
+      attempts++;
+      
+      // A difficoltà maggiore, maggiore probabilità di scegliere un nodo casuale per creare ramificazioni
+      const parentIndex = difficulty > 1 && Math.random() < (difficulty * 0.2)
+        ? Math.floor(Math.random() * roomsList.length)
+        : roomsList.length - 1;
+      const parent = roomsList[parentIndex];
 
-      const validDirs = directions.filter(dir => {
-        const nx = parent.x + dir.dx;
-        const ny = parent.y + dir.dy;
-        return !occupiedCoords.has(`${nx},${ny}`);
-      });
+      // Le dimensioni non sono legate alla difficoltà (difficoltà 1 può avere stanze grandi)
+      const size = possibleSizes[Math.floor(Math.random() * possibleSizes.length)];
+      const dir = directions[Math.floor(Math.random() * directions.length)];
 
-      if (validDirs.length === 0) {
-        roomsList.pop();
-        continue;
+      let nx = parent.x;
+      let ny = parent.y;
+
+      if (dir.dx === 1) {
+        nx = parent.x + parent.width * TILE_SIZE;
+        ny = parent.y + (Math.floor(Math.random() * parent.height) - Math.floor(Math.random() * size.h)) * TILE_SIZE;
+      } else if (dir.dx === -1) {
+        nx = parent.x - size.w * TILE_SIZE;
+        ny = parent.y + (Math.floor(Math.random() * parent.height) - Math.floor(Math.random() * size.h)) * TILE_SIZE;
+      } else if (dir.dy === 1) {
+        ny = parent.y + parent.height * TILE_SIZE;
+        nx = parent.x + (Math.floor(Math.random() * parent.width) - Math.floor(Math.random() * size.w)) * TILE_SIZE;
+      } else if (dir.dy === -1) {
+        ny = parent.y - size.h * TILE_SIZE;
+        nx = parent.x + (Math.floor(Math.random() * parent.width) - Math.floor(Math.random() * size.w)) * TILE_SIZE;
       }
 
-      const dir = validDirs[Math.floor(Math.random() * validDirs.length)];
-      const nx = parent.x + dir.dx;
-      const ny = parent.y + dir.dy;
+      if (canPlaceRoom(nx, ny, size.w, size.h)) {
+        const tileId = `tile_${createdCount}`;
+        const tile = new Tile();
+        tile.id = tileId;
+        tile.name = `Stanza ${createdCount}`;
+        tile.x = nx;
+        tile.y = ny;
+        tile.width = size.w;
+        tile.height = size.h;
+        tile.explored = false;
+        this.state.tiles.set(tile.id, tile);
+        occupyRoomCells(nx, ny, size.w, size.h);
 
-      const tileId = `tile_${createdCount}`;
-      const tile = new Tile();
-      tile.id = tileId;
-      tile.name = `Stanza ${createdCount}`;
-      tile.x = nx;
-      tile.y = ny;
-      tile.explored = true;
-      this.state.tiles.set(tile.id, tile);
-      occupiedCoords.set(`${nx},${ny}`, tile.id);
+        const door = new InteractionSpot();
+        door.id = `door_${parent.id}_${tileId}`;
+        door.type = "door";
+        door.x = (nx + parent.x + (size.w * TILE_SIZE)/2) / 2;
+        door.y = (ny + parent.y + (size.h * TILE_SIZE)/2) / 2;
+        door.state = "closed"; 
+        this.state.interactions.set(door.id, door);
 
-      // Porta impostata a "closed" per essere renderizzata dal client
-      const door = new InteractionSpot();
-      door.id = `door_${parent.x}_${parent.y}_${nx}_${ny}`;
-      door.type = "door";
-      door.x = parent.x + (dir.dx / 2);
-      door.y = parent.y + (dir.dy / 2);
-      door.state = "closed"; 
-      this.state.interactions.set(door.id, door);
-
-      roomsList.push({ id: tileId, x: nx, y: ny });
-      createdCount++;
+        roomsList.push({ id: tileId, x: nx, y: ny, width: size.w, height: size.h });
+        createdCount++;
+      }
     }
 
     // 3. Posizionamento Cripta Finale
-    const lastRoom = roomsList[roomsList.length - 1] || { x: 0, y: 0 };
+    const lastRoom = roomsList[roomsList.length - 1];
     let finalPlaced = false;
 
     for (const dir of directions) {
-      const fnx = lastRoom.x + dir.dx;
-      const fny = lastRoom.y + dir.dy;
-      if (!occupiedCoords.has(`${fnx},${fny}`)) {
+      let fnx = lastRoom.x;
+      let fny = lastRoom.y;
+      if (dir.dx === 1) fnx = lastRoom.x + lastRoom.width * TILE_SIZE;
+      if (dir.dx === -1) fnx = lastRoom.x - TILE_SIZE;
+      if (dir.dy === 1) fny = lastRoom.y + lastRoom.height * TILE_SIZE;
+      if (dir.dy === -1) fny = lastRoom.y - TILE_SIZE;
+
+      if (canPlaceRoom(fnx, fny, 1, 1)) {
         const finalTile = new Tile();
         finalTile.id = "tile_final";
         finalTile.name = "Cripta Finale";
         finalTile.x = fnx;
         finalTile.y = fny;
-        finalTile.explored = true;
+        finalTile.width = 1;
+        finalTile.height = 1;
+        finalTile.explored = false;
         this.state.tiles.set(finalTile.id, finalTile);
+        occupyRoomCells(fnx, fny, 1, 1);
 
         const finalDoor = new InteractionSpot();
         finalDoor.id = "door_final";
         finalDoor.type = "door";
-        finalDoor.x = lastRoom.x + (dir.dx / 2);
-        finalDoor.y = lastRoom.y + (dir.dy / 2);
+        finalDoor.x = (fnx + lastRoom.x) / 2 + 100;
+        finalDoor.y = (fny + lastRoom.y) / 2 + 100;
         finalDoor.state = "closed";
         finalDoor.requiredKey = "key";
         this.state.interactions.set(finalDoor.id, finalDoor);
@@ -339,16 +413,18 @@ export class GameRoom extends Room<any> {
       const fallbackTile = new Tile();
       fallbackTile.id = "tile_final";
       fallbackTile.name = "Cripta Finale";
-      fallbackTile.x = lastRoom.x + TILE_SIZE;
+      fallbackTile.x = lastRoom.x + lastRoom.width * TILE_SIZE;
       fallbackTile.y = lastRoom.y;
-      fallbackTile.explored = true;
+      fallbackTile.width = 1;
+      fallbackTile.height = 1;
+      fallbackTile.explored = false;
       this.state.tiles.set(fallbackTile.id, fallbackTile);
 
       const fallbackDoor = new InteractionSpot();
       fallbackDoor.id = "door_final";
       fallbackDoor.type = "door";
-      fallbackDoor.x = lastRoom.x + (TILE_SIZE / 2);
-      fallbackDoor.y = lastRoom.y;
+      fallbackDoor.x = lastRoom.x + lastRoom.width * TILE_SIZE;
+      fallbackDoor.y = lastRoom.y + 100;
       fallbackDoor.state = "closed";
       fallbackDoor.requiredKey = "key";
       this.state.interactions.set(fallbackDoor.id, fallbackDoor);

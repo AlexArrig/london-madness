@@ -312,37 +312,37 @@ export default function App() {
           }}>
             
             {/* Tessere */}
-            {Object.entries(tiles)
-              .filter(([id, tile]) => tile.explored || currentPlayer.currentTile === id)
-              .map(([id, tile]) => (
-                <div
-                  key={id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (room && isMyTurn) room.send("move_to_tile", { tileId: tile.id });
-                  }}
-                  style={{
-                    position: 'absolute',
-                    left: `${tile.x - 75}px`,
-                    top: `${tile.y - 75}px`,
-                    width: '150px',
-                    height: '150px',
-                    background: '#2c3e50',
-                    border: currentPlayer.currentTile === tile.id ? '3px solid #f1c40f' : '3px solid #e74c3c',
-                    borderRadius: '6px',
-                    cursor: isMyTurn ? 'pointer' : 'default',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
-                    zIndex: 1
-                  }}
-                >
-                  <span style={{ fontSize: '12px', color: '#ecf0f1', fontWeight: 'bold', textAlign: 'center', padding: '4px' }}>
-                    {tile.name}
-                  </span>
-                </div>
-              ))}
+{Object.entries(tiles)
+  .filter(([id, tile]) => tile.explored || currentPlayer.currentTile === id)
+  .map(([id, tile]) => (
+    <div
+      key={id}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (room && isMyTurn) room.send("move_to_tile", { tileId: tile.id });
+      }}
+      style={{
+        position: 'absolute',
+        left: `${tile.x - 75}px`,
+        top: `${tile.y - 75}px`,
+        width: `${tile.width ? tile.width * 200 - 50 : 150}px`,
+        height: `${tile.height ? tile.height * 200 - 50 : 150}px`,
+        background: '#2c3e50',
+        border: currentPlayer.currentTile === tile.id ? '3px solid #f1c40f' : '3px solid #e74c3c',
+        borderRadius: '6px',
+        cursor: isMyTurn ? 'pointer' : 'default',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
+        zIndex: 1
+      }}
+    >
+      <span style={{ fontSize: '12px', color: '#ecf0f1', fontWeight: 'bold', textAlign: 'center', padding: '4px' }}>
+        {tile.name}
+      </span>
+    </div>
+  ))}
 
             {/* Oggetti e Porte (Visibili solo se almeno una delle tessere collegate è esplorata) */}
 {Object.entries(interactions)
