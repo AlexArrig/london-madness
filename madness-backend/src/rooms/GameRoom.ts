@@ -75,9 +75,6 @@ export class GameRoom extends Room<any> {
       }
 
       let canPass = true;
-      const midX = (currentTile.x + targetTile.x) / 2;
-      const midY = (currentTile.y + targetTile.y) / 2;
-
       this.state.interactions.forEach((spot: any) => {
         if (spot.type === "door" && Math.abs(spot.x - (currentTile.x + targetTile.x)/2) <= 150 && Math.abs(spot.y - (currentTile.y + targetTile.y)/2) <= 150 && spot.state !== "open") {
           canPass = false;
@@ -89,11 +86,9 @@ export class GameRoom extends Room<any> {
         return;
       }
 
-      player.x = targetTile.x - 25 + (targetTile.width * 100);
-      player.y = targetTile.y + (targetTile.height * 100);
-      player.currentTile = targetTile.id;
+      // Aggiorna posizione in modo naturale senza sovrapposizioni
+      this.updatePlayerPosition(player, targetTile);
       player.actionsLeft -= 1;
-      
       targetTile.explored = true;
 
       this.state.gameMessage = `Movimento completato. Azioni rimanenti: ${player.actionsLeft}`;
@@ -141,7 +136,6 @@ export class GameRoom extends Room<any> {
           spot.state = "open";
         }
 
-        // Trova la tessera collegata dall'altra parte rispetto alla posizione attuale del giocatore
         const targetTileId = (spot.tileAId === player.currentTile) ? spot.tileBId : spot.tileAId;
         const targetTile = this.state.tiles.get(targetTileId);
 
@@ -150,10 +144,8 @@ export class GameRoom extends Room<any> {
           return;
         }
 
-        // Sposta automaticamente il giocatore nella nuova stanza e rivelala
-        player.x = targetTile.x - 25 + (targetTile.width * 100);
-        player.y = targetTile.y + (targetTile.height * 100);
-        player.currentTile = targetTile.id;
+        // Posizionamento naturale e non sovrapposto nella nuova stanza
+        this.updatePlayerPosition(player, targetTile);
         player.actionsLeft -= 1;
         targetTile.explored = true;
 
@@ -187,6 +179,33 @@ export class GameRoom extends Room<any> {
       if (!this.isPlayerTurn(client.sessionId)) return;
       this.nextPlayerTurn();
     });
+  }
+
+  // Metodo per calcolare posizioni naturali e prive di sovrapposizioni all'interno della tessera
+  private updatePlayerPosition(player: Player, tile: Tile) {
+    const TILE_SIZE = 200;
+    const centerX = tile.x + (tile.width * TILE_SIZE) / 2;
+    const centerY = tile.y + (tile.height * TILE_SIZE) / 2;
+
+    // Filtra gli altri giocatori presenti nella stessa tessera
+    const peersInTile = Array.from(this.state.players.values()).filter(
+      (p) => p.currentTile === tile.id && p.id !== player.id
+    );
+    const index = peersInTile.length;
+
+    // Offset di disposizione a raggiera attorno al centro della tessera
+    const naturalOffsets = [
+      { x: 0, y: 0 },
+      { x: -35, y: -25 },
+      { x: 35, y: 25 },
+      { x: -35, y: 25 },
+      { x: 35, y: -25 }
+    ];
+
+    const offset = naturalOffsets[index % naturalOffsets.length];
+    player.x = centerX + offset.x;
+    player.y = centerY + offset.y;
+    player.currentTile = tile.id;
   }
 
   private areRoomsAdjacent(t1: Tile, t2: Tile): boolean {
@@ -256,20 +275,27 @@ export class GameRoom extends Room<any> {
   }
 
   onJoin(client: Client) {
+    if (this.state.tiles.size === 0) {
+      this.generateMansionLayout(this.state.difficulty);
+    }
+
     const player = new Player();
     player.id = client.sessionId;
-    player.x = -25;
-    player.y = 0;
     player.currentTile = "tile_0";
     player.actionsLeft = 2;
+
+    const t0 = this.state.tiles.get("tile_0");
+    if (t0) {
+      this.updatePlayerPosition(player, t0);
+    } else {
+      player.x = 0;
+      player.y = 0;
+    }
+
     this.state.players.set(client.sessionId, player);
 
     if (!this.state.activePlayerId) {
       this.state.activePlayerId = client.sessionId;
-    }
-
-    if (this.state.tiles.size === 0) {
-      this.generateMansionLayout(this.state.difficulty);
     }
   }
 
@@ -327,7 +353,6 @@ export class GameRoom extends Room<any> {
     occupyRoomCells(0, 0, 1, 1);
 
     const roomsList = [{ id: "tile_0", x: 0, y: 0, width: 1, height: 1 }];
-    
     const totalRooms = difficulty * 3 + 5;
     
     const possibleSizes = [
