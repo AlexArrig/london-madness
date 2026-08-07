@@ -24,28 +24,15 @@ export default function App() {
   const [activePlayerId, setActivePlayerId] = useState("");
   const [currentPhase, setCurrentPhase] = useState("investigators");
 
-  // Telecamera Pan & Zoom
+  // Telecamera Pan & Zoom (inizializzata a 0,0 con zoom 1)
   const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  // Riferimenti per gestire il pinch-to-zoom da mobile e centratura iniziale
+  // Riferimenti per gestire il pinch-to-zoom da mobile
   const touchStartDist = useRef(null);
   const initialZoom = useRef(1);
   const mapContainerRef = useRef(null);
-  const hasInitializedCamera = useRef(false);
-
-  // Centra automaticamente la telecamera all'avvio della partita
-  useEffect(() => {
-    if (view === 'game' && mapContainerRef.current && !hasInitializedCamera.current) {
-      const width = mapContainerRef.current.clientWidth;
-      const height = mapContainerRef.current.clientHeight;
-      if (width > 0 && height > 0) {
-        setCamera({ x: width / 2, y: height / 2, zoom: 1 });
-        hasInitializedCamera.current = true;
-      }
-    }
-  }, [view, tiles]);
 
   // Crea la stanza con Difficoltà e Max Giocatori
   const handleCreateGame = async () => {
@@ -74,7 +61,7 @@ export default function App() {
   const setupRoom = (r) => {
     setRoom(r);
     setClientId(r.sessionId);
-    hasInitializedCamera.current = false;
+    setCamera({ x: 0, y: 0, zoom: 1 }); // Resetta la telecamera al centro esatto
     setView('game');
 
     r.onStateChange((state) => {
@@ -269,7 +256,7 @@ export default function App() {
   return (
     <div style={{ background: '#121212', color: '#fff', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', overflow: 'hidden', boxSizing: 'border-box' }}>
       
-      {/* Contenitore principale: pieno su Desktop, ridotto con margini sopra/sotto su Mobile */}
+      {/* Contenitore principale */}
       <div style={{ width: '100%', height: '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', padding: 'clamp(10px, 10vh, 10vh) clamp(10px, 2vw, 2vw)', boxSizing: 'border-box' }}>
         
         {/* Barra superiore informazioni */}
@@ -313,17 +300,18 @@ export default function App() {
             boxSizing: 'border-box'
           }}
         >
+          {/* Centrato automaticamente via CSS (top: 50%, left: 50%) */}
           <div style={{
             position: 'absolute',
-            top: '0px',
-            left: '0px',
+            top: '50%',
+            left: '50%',
             width: '0px',
             height: '0px',
             transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
             transformOrigin: '0 0'
           }}>
             
-            {/* Tessere (Mostrate solo se esplorate/accessibili) */}
+            {/* Tessere */}
             {Object.entries(tiles)
               .filter(([id, tile]) => tile.explored || currentPlayer.currentTile === id)
               .map(([id, tile]) => (
@@ -354,16 +342,15 @@ export default function App() {
                     {tile.name}
                   </span>
                 </div>
-            ))}
+              ))}
 
-            {/* Oggetti e Porte (Visibili solo se la tessera corrispondente è esplorata) */}
-{Object.entries(interactions)
-  .filter(([id, spot]) => {
-    // Aumentato a 110 per includere le porte posizionate a 100px dal centro (a metà tra le stanze)
-    const parentTile = Object.values(tiles).find(t => Math.abs(t.x - spot.x) <= 110 && Math.abs(t.y - spot.y) <= 110);
-    return parentTile && (parentTile.explored || currentPlayer.currentTile === parentTile.id);
-  })
-  .map(([id, spot]) => (
+            {/* Oggetti e Porte (soglia portata a 110 per coprire il punto medio delle porte a 100px) */}
+            {Object.entries(interactions)
+              .filter(([id, spot]) => {
+                const parentTile = Object.values(tiles).find(t => Math.abs(t.x - spot.x) <= 110 && Math.abs(t.y - spot.y) <= 110);
+                return parentTile && (parentTile.explored || currentPlayer.currentTile === parentTile.id);
+              })
+              .map(([id, spot]) => (
                 <div
                   key={id}
                   onClick={(e) => {
@@ -390,7 +377,7 @@ export default function App() {
                 >
                   {spot.type === 'door' ? '🚪' : '🔍'}
                 </div>
-            ))}
+              ))}
 
             {/* Giocatori */}
             {Object.entries(players).map(([id, p]) => (
