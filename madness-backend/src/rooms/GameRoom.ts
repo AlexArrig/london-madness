@@ -15,7 +15,7 @@ class Tile extends Schema {
   @type("number") x: number = 0;
   @type("number") y: number = 0;
   @type("string") name: string = "";
-  @type("boolean") explored: boolean = true; // <-- IMPOSTATO A TRUE PER VISUALIZZARE SUBITO TUTTO
+  @type("boolean") explored: boolean = true; // Visibile per test
 }
 
 class Player extends Schema {
@@ -95,7 +95,6 @@ export class GameRoom extends Room<any> {
       player.actionsLeft -= 1;
       this.state.gameMessage = `Movimento completato. Azioni rimanenti: ${player.actionsLeft}`;
 
-      // Configura l'area di ricerca se non è la tile iniziale o finale
       if (targetTile.id !== "tile_0" && targetTile.id !== "tile_final") {
         const searchId = `search_${targetTile.id}`;
         if (!this.state.interactions.has(searchId)) {
@@ -253,7 +252,7 @@ export class GameRoom extends Room<any> {
     occupiedCoords.set("0,0", "tile_0");
 
     const roomsList = [{ id: "tile_0", x: 0, y: 0 }];
-    const totalRooms = difficulty * 2 + 3; // Es: Difficoltà 1 = 5 stanze + cripta
+    const totalRooms = difficulty * 2 + 3;
     const directions = [
       { dx: TILE_SIZE, dy: 0 },
       { dx: -TILE_SIZE, dy: 0 },
@@ -263,11 +262,10 @@ export class GameRoom extends Room<any> {
 
     let createdCount = 1;
 
-    // 2. Generazione delle stanze intermedie garantita e validata
+    // 2. Generazione stanze intermedie con validazione
     while (createdCount < totalRooms && roomsList.length > 0) {
       const parent = roomsList[roomsList.length - 1];
 
-      // Validazione: filtra solo direzioni che non collidono con altre stanze
       const validDirs = directions.filter(dir => {
         const nx = parent.x + dir.dx;
         const ny = parent.y + dir.dy;
@@ -275,7 +273,7 @@ export class GameRoom extends Room<any> {
       });
 
       if (validDirs.length === 0) {
-        roomsList.pop(); // Torna indietro se vicolo cieco
+        roomsList.pop();
         continue;
       }
 
@@ -289,24 +287,24 @@ export class GameRoom extends Room<any> {
       tile.name = `Stanza ${createdCount}`;
       tile.x = nx;
       tile.y = ny;
-      tile.explored = true; // Visibile subito per test
+      tile.explored = true;
       this.state.tiles.set(tile.id, tile);
       occupiedCoords.set(`${nx},${ny}`, tile.id);
 
-      // Crea la porta validata a metà strada
+      // Porta impostata a "closed" per essere renderizzata dal client
       const door = new InteractionSpot();
       door.id = `door_${parent.x}_${parent.y}_${nx}_${ny}`;
       door.type = "door";
       door.x = parent.x + (dir.dx / 2);
       door.y = parent.y + (dir.dy / 2);
-      door.state = "open"; // Aperte per testare subito il movimento
+      door.state = "closed"; 
       this.state.interactions.set(door.id, door);
 
       roomsList.push({ id: tileId, x: nx, y: ny });
       createdCount++;
     }
 
-    // 3. Posizionamento Cripta Finale validata
+    // 3. Posizionamento Cripta Finale
     const lastRoom = roomsList[roomsList.length - 1] || { x: 0, y: 0 };
     let finalPlaced = false;
 
@@ -354,7 +352,5 @@ export class GameRoom extends Room<any> {
       fallbackDoor.requiredKey = "key";
       this.state.interactions.set(fallbackDoor.id, fallbackDoor);
     }
-
-    console.log(`[GENERATORE] Mappa creata con ${this.state.tiles.size} tessere visibili e ${this.state.interactions.size} punti di interazione.`);
   }
 }
