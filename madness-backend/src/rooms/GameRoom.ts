@@ -15,7 +15,7 @@ class Tile extends Schema {
   @type("number") x: number = 0;
   @type("number") y: number = 0;
   @type("string") name: string = "";
-  @type("boolean") explored: boolean = true; // Visibile per test
+  @type("boolean") explored: boolean = false; // Visibile per test
 }
 
 class Player extends Schema {
@@ -93,6 +93,7 @@ export class GameRoom extends Room<any> {
       player.y = targetTile.y;
       player.currentTile = targetTile.id;
       player.actionsLeft -= 1;
+      targetTile.explored = true;
       this.state.gameMessage = `Movimento completato. Azioni rimanenti: ${player.actionsLeft}`;
 
       if (targetTile.id !== "tile_0" && targetTile.id !== "tile_final") {

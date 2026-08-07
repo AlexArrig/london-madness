@@ -344,13 +344,15 @@ export default function App() {
                 </div>
               ))}
 
-            {/* Oggetti e Porte (soglia portata a 110 per coprire il punto medio delle porte a 100px) */}
-            {Object.entries(interactions)
-              .filter(([id, spot]) => {
-                const parentTile = Object.values(tiles).find(t => Math.abs(t.x - spot.x) <= 110 && Math.abs(t.y - spot.y) <= 110);
-                return parentTile && (parentTile.explored || currentPlayer.currentTile === parentTile.id);
-              })
-              .map(([id, spot]) => (
+            {/* Oggetti e Porte (Visibili solo se almeno una delle tessere collegate è esplorata) */}
+{Object.entries(interactions)
+  .filter(([id, spot]) => {
+    // Trova tutte le tessere vicine allo spot (entro 110px)
+    const connectedTiles = Object.values(tiles).filter(t => Math.abs(t.x - spot.x) <= 110 && Math.abs(t.y - spot.y) <= 110);
+    // Visibile se almeno una tessera collegata è esplorata o è quella in cui si trova il giocatore
+    return connectedTiles.some(t => t.explored || currentPlayer.currentTile === t.id);
+  })
+  .map(([id, spot]) => (
                 <div
                   key={id}
                   onClick={(e) => {
