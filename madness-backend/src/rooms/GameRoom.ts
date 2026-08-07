@@ -15,7 +15,7 @@ class Tile extends Schema {
   @type("number") x: number = 0;
   @type("number") y: number = 0;
   @type("string") name: string = "";
-  @type("boolean") explored: boolean = false;
+  @type("boolean") explored: boolean = true; // <-- IMPOSTATO A TRUE PER VISUALIZZARE SUBITO TUTTO
 }
 
 class Player extends Schema {
@@ -95,10 +95,10 @@ export class GameRoom extends Room<any> {
       player.actionsLeft -= 1;
       this.state.gameMessage = `Movimento completato. Azioni rimanenti: ${player.actionsLeft}`;
 
-      if (!targetTile.explored) {
-        targetTile.explored = true;
-        if (targetTile.id !== "tile_0" && targetTile.id !== "tile_final") {
-          const searchId = `search_${targetTile.id}`;
+      // Configura l'area di ricerca se non è la tile iniziale o finale
+      if (targetTile.id !== "tile_0" && targetTile.id !== "tile_final") {
+        const searchId = `search_${targetTile.id}`;
+        if (!this.state.interactions.has(searchId)) {
           const searchSpot = new InteractionSpot();
           searchSpot.id = searchId;
           searchSpot.type = "search";
@@ -263,12 +263,11 @@ export class GameRoom extends Room<any> {
 
     let createdCount = 1;
 
-    // 2. Generazione delle stanze intermedie garantita
+    // 2. Generazione delle stanze intermedie garantita e validata
     while (createdCount < totalRooms && roomsList.length > 0) {
-      // Prendi l'ultima stanza aggiunta per mantenere un flusso ramificato coerente
       const parent = roomsList[roomsList.length - 1];
 
-      // Trova una direzione libera attorno al parent
+      // Validazione: filtra solo direzioni che non collidono con altre stanze
       const validDirs = directions.filter(dir => {
         const nx = parent.x + dir.dx;
         const ny = parent.y + dir.dy;
@@ -276,8 +275,7 @@ export class GameRoom extends Room<any> {
       });
 
       if (validDirs.length === 0) {
-        // Se l'ultima non ha spazio, rimuovila dalla coda e prova con un'altra esistente
-        roomsList.pop();
+        roomsList.pop(); // Torna indietro se vicolo cieco
         continue;
       }
 
@@ -291,23 +289,24 @@ export class GameRoom extends Room<any> {
       tile.name = `Stanza ${createdCount}`;
       tile.x = nx;
       tile.y = ny;
+      tile.explored = true; // Visibile subito per test
       this.state.tiles.set(tile.id, tile);
       occupiedCoords.set(`${nx},${ny}`, tile.id);
 
-      // Crea la porta di collegamento
+      // Crea la porta validata a metà strada
       const door = new InteractionSpot();
       door.id = `door_${parent.x}_${parent.y}_${nx}_${ny}`;
       door.type = "door";
       door.x = parent.x + (dir.dx / 2);
       door.y = parent.y + (dir.dy / 2);
-      door.state = (createdCount === 1) ? "open" : "closed";
+      door.state = "open"; // Aperte per testare subito il movimento
       this.state.interactions.set(door.id, door);
 
       roomsList.push({ id: tileId, x: nx, y: ny });
       createdCount++;
     }
 
-    // 3. Posizionamento garantito della Cripta Finale (collegata all'ultima stanza creata o a una vicina)
+    // 3. Posizionamento Cripta Finale validata
     const lastRoom = roomsList[roomsList.length - 1] || { x: 0, y: 0 };
     let finalPlaced = false;
 
@@ -320,6 +319,7 @@ export class GameRoom extends Room<any> {
         finalTile.name = "Cripta Finale";
         finalTile.x = fnx;
         finalTile.y = fny;
+        finalTile.explored = true;
         this.state.tiles.set(finalTile.id, finalTile);
 
         const finalDoor = new InteractionSpot();
@@ -336,13 +336,13 @@ export class GameRoom extends Room<any> {
       }
     }
 
-    // Fallback estremo se lo spazio attorno all'ultima stanza fosse totalmente saturato
     if (!finalPlaced) {
       const fallbackTile = new Tile();
       fallbackTile.id = "tile_final";
       fallbackTile.name = "Cripta Finale";
       fallbackTile.x = lastRoom.x + TILE_SIZE;
       fallbackTile.y = lastRoom.y;
+      fallbackTile.explored = true;
       this.state.tiles.set(fallbackTile.id, fallbackTile);
 
       const fallbackDoor = new InteractionSpot();
@@ -355,6 +355,6 @@ export class GameRoom extends Room<any> {
       this.state.interactions.set(fallbackDoor.id, fallbackDoor);
     }
 
-    console.log(`[Mansion Generator] Mappa generata con successo. Totale tessere: ${this.state.tiles.size}, Porte: ${this.state.interactions.size}`);
+    console.log(`[GENERATORE] Mappa creata con ${this.state.tiles.size} tessere visibili e ${this.state.interactions.size} punti di interazione.`);
   }
 }
