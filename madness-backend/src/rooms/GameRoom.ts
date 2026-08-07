@@ -187,10 +187,11 @@ export class GameRoom extends Room<any> {
     const centerX = tile.x + (tile.width * TILE_SIZE) / 2;
     const centerY = tile.y + (tile.height * TILE_SIZE) / 2;
 
-    // Filtra gli altri giocatori presenti nella stessa tessera
+    // Aggiunto il tipo esplicito (p: Player) per risolvere l'errore TS2339
     const peersInTile = Array.from(this.state.players.values()).filter(
-      (p) => p.currentTile === tile.id && p.id !== player.id
+      (p: Player) => p.currentTile === tile.id && p.id !== player.id
     );
+    
     const index = peersInTile.length;
 
     // Offset di disposizione a raggiera attorno al centro della tessera
