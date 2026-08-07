@@ -38,7 +38,7 @@ class MadnessState extends Schema {
   @type("string") currentPhase: string = "investigators";
 }
 
-export class GameRoom extends Room<MadnessState> {
+export class GameRoom extends Room<any> {
   
   onCreate(options: any) {
     this.setState(new MadnessState() as any);
