@@ -38,19 +38,17 @@ class MadnessState extends Schema {
   @type("string") currentPhase: string = "investigators";
 }
 
-export class GameRoom extends Room {
+export class GameRoom extends Room<MadnessState> {
   
   onCreate(options: any) {
-    this.setState(new MadnessState());
+    this.setState(new MadnessState() as any);
     
-    // Configura la capienza massima scelta dal creatore (da 1 a 5, default 4)
     const max = options.maxPlayers ? parseInt(options.maxPlayers, 10) : 4;
     this.maxClients = isNaN(max) ? 4 : Math.max(1, Math.min(5, max));
 
     const diff = options.difficulty ? parseInt(options.difficulty, 10) : 1;
     this.state.difficulty = isNaN(diff) ? 1 : Math.max(1, Math.min(5, diff));
 
-    // MOVIMENTO
     this.onMessage("move_to_tile", (client, data: { tileId: string }) => {
       if (!this.isPlayerTurn(client.sessionId)) return;
 
@@ -112,7 +110,6 @@ export class GameRoom extends Room {
       this.checkAutoEndTurn(player);
     });
 
-    // INTERAZIONE
     this.onMessage("interact", (client, data: { spotId: string }) => {
       if (!this.isPlayerTurn(client.sessionId)) return;
 
@@ -150,7 +147,6 @@ export class GameRoom extends Room {
       this.checkAutoEndTurn(player);
     });
 
-    // PASSAGGIO TURNO
     this.onMessage("end_turn", (client) => {
       if (!this.isPlayerTurn(client.sessionId)) return;
       this.nextPlayerTurn();
