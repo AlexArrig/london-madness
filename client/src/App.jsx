@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import * as Colyseus from "@colyseus/sdk";
 
 // Configurazione automatica dell'endpoint
@@ -29,9 +29,23 @@ export default function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  // Riferimenti per gestire il pinch-to-zoom da mobile
+  // Riferimenti per gestire il pinch-to-zoom da mobile e centratura iniziale
   const touchStartDist = useRef(null);
   const initialZoom = useRef(1);
+  const mapContainerRef = useRef(null);
+  const hasInitializedCamera = useRef(false);
+
+  // Centra automaticamente la telecamera all'avvio della partita
+  useEffect(() => {
+    if (view === 'game' && mapContainerRef.current && !hasInitializedCamera.current) {
+      const width = mapContainerRef.current.clientWidth;
+      const height = mapContainerRef.current.clientHeight;
+      if (width > 0 && height > 0) {
+        setCamera({ x: width / 2, y: height / 2, zoom: 1 });
+        hasInitializedCamera.current = true;
+      }
+    }
+  }, [view, tiles]);
 
   // Crea la stanza con Difficoltà e Max Giocatori
   const handleCreateGame = async () => {
@@ -60,6 +74,7 @@ export default function App() {
   const setupRoom = (r) => {
     setRoom(r);
     setClientId(r.sessionId);
+    hasInitializedCamera.current = false;
     setView('game');
 
     r.onStateChange((state) => {
@@ -251,165 +266,170 @@ export default function App() {
   const isMyTurn = activePlayerId === clientId && currentPhase === "investigators";
 
   return (
-    <div style={{ background: '#121212', color: '#fff', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', overflow: 'hidden', padding: '10px', boxSizing: 'border-box' }}>
+    <div style={{ background: '#121212', color: '#fff', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', overflow: 'hidden', boxSizing: 'border-box' }}>
       
-      {/* Barra superiore informazioni */}
-      <div style={{ flexShrink: 0, width: '100%', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', background: '#1a1a1a', padding: '10px 15px', borderRadius: '6px', border: '1px solid #333', boxSizing: 'border-box', marginBottom: '8px' }}>
-        <div>ID: <code style={{ color: '#f1c40f', background: '#222', padding: '2px 6px', borderRadius: '4px', userSelect: 'all' }}>{room?.roomId}</code></div>
-        <div style={{ color: isMyTurn ? '#2ecc71' : '#e74c3c', fontWeight: 'bold' }}>
-          {currentPhase === "monsters" ? "⚠️ TURNO DEI MOSTRI" : (isMyTurn ? "🟢 È IL TUO TURNO" : "⏳ TURNO ALTRUI")}
+      {/* Contenitore principale adattivo: pieno su Desktop (>=1024px), margini del 10% sopra e sotto su Mobile */}
+      <div style={{ width: '100%', height: '100%', maxWidth: '100%', '@media (min-width: 1024px)': { maxWidth: '100%' }, display: 'flex', flexDirection: 'column', padding: 'clamp(10px, 10vh, 10vh) clamp(10px, 2vw, 2vw)', boxSizing: 'border-box' }}>
+        
+        {/* Barra superiore informazioni */}
+        <div style={{ flexShrink: 0, width: '100%', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', background: '#1a1a1a', padding: '10px 15px', borderRadius: '6px', border: '1px solid #333', boxSizing: 'border-box', marginBottom: '8px' }}>
+          <div>ID: <code style={{ color: '#f1c40f', background: '#222', padding: '2px 6px', borderRadius: '4px', userSelect: 'all' }}>{room?.roomId}</code></div>
+          <div style={{ color: isMyTurn ? '#2ecc71' : '#e74c3c', fontWeight: 'bold' }}>
+            {currentPhase === "monsters" ? "⚠️ TURNO DEI MOSTRI" : (isMyTurn ? "🟢 È IL TUO TURNO" : "⏳ TURNO ALTRUI")}
+          </div>
+          {isMyTurn && <div style={{ color: '#3498db' }}>Azioni: <strong>{currentPlayer.actionsLeft}</strong></div>}
+          <div style={{ color: '#f1c40f' }}>{currentPlayer.hasKey ? "🔑 Chiave" : "🔒 No Chiave"}</div>
         </div>
-        {isMyTurn && <div style={{ color: '#3498db' }}>Azioni: <strong>{currentPlayer.actionsLeft}</strong></div>}
-        <div style={{ color: '#f1c40f' }}>{currentPlayer.hasKey ? "🔑 Chiave" : "🔒 No Chiave"}</div>
-      </div>
 
-      {gameWon && (
-        <div style={{ flexShrink: 0, background: '#27ae60', color: '#fff', padding: '8px 15px', borderRadius: '5px', fontWeight: 'bold', fontSize: '14px', textAlign: 'center', width: '100%', boxSizing: 'border-box', marginBottom: '8px' }}>
-          🎉 SCENARIO COMPLETATO CON SUCCESSO!
-        </div>
-      )}
-
-      {/* Viewport mappa */}
-      <div 
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onWheel={handleWheel}
-        style={{ 
-          flex: 1,
-          width: '100%', 
-          border: '2px solid #333', 
-          borderRadius: '8px', 
-          background: '#141414', 
-          position: 'relative', 
-          overflow: 'hidden',
-          cursor: isDragging ? 'grabbing' : 'grab',
-          touchAction: 'none',
-          marginBottom: '8px',
-          boxSizing: 'border-box'
-        }}
-      >
-        <div style={{
-          position: 'absolute',
-          top: '0px',
-          left: '0px',
-          width: '0px',
-          height: '0px',
-          transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
-          transformOrigin: '0 0'
-        }}>
-          
-          {/* Tessere */}
-          {Object.entries(tiles).map(([id, tile]) => (
-            <div
-              key={id}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (room && isMyTurn) room.send("move_to_tile", { tileId: tile.id });
-              }}
-              style={{
-                position: 'absolute',
-                left: `${tile.x - 75}px`,
-                top: `${tile.y - 75}px`,
-                width: '150px',
-                height: '150px',
-                background: '#2c3e50',
-                border: currentPlayer.currentTile === tile.id ? '3px solid #f1c40f' : '3px solid #e74c3c',
-                borderRadius: '6px',
-                cursor: isMyTurn ? 'pointer' : 'default',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
-                zIndex: 1
-              }}
-            >
-              <span style={{ fontSize: '12px', color: '#ecf0f1', fontWeight: 'bold', textAlign: 'center', padding: '4px' }}>
-                {tile.name}
-              </span>
-            </div>
-          ))}
-
-          {/* Oggetti e Porte */}
-          {Object.entries(interactions).map(([id, spot]) => (
-            <div
-              key={id}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (room && isMyTurn) room.send("interact", { spotId: id });
-              }}
-              style={{
-                position: 'absolute',
-                left: `${spot.x - 15}px`,
-                top: `${spot.y - 15}px`,
-                width: '30px',
-                height: '30px',
-                borderRadius: '50%',
-                background: spot.type === 'door' ? (spot.state === 'open' ? '#27ae60' : '#c0392b') : (spot.state === 'explored' ? '#7f8c8d' : '#f1c40f'),
-                border: '2px solid #fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '12px',
-                cursor: isMyTurn ? 'pointer' : 'default',
-                zIndex: 2
-              }}
-              title={`${spot.type} (${spot.state})`}
-            >
-              {spot.type === 'door' ? '🚪' : '🔍'}
-            </div>
-          ))}
-
-          {/* Giocatori */}
-          {Object.entries(players).map(([id, p]) => (
-            <div
-              key={id}
-              style={{
-                position: 'absolute',
-                left: `${p.x - 18}px`,
-                top: `${p.y - 18}px`,
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                background: id === clientId ? '#d35400' : '#2980b9',
-                border: '2px solid #ffffff',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                color: '#fff',
-                zIndex: 3
-              }}
-              title={`Giocatore ${id}`}
-            >
-              {id.substring(0, 2).toUpperCase()}
-            </div>
-          ))}
-
-        </div>
-      </div>
-
-      {/* Pannello inferiore con Log e Passa Turno */}
-      <div style={{ flexShrink: 0, width: '100%', display: 'flex', gap: '10px', alignItems: 'center', boxSizing: 'border-box' }}>
-        <div style={{ flex: 1, padding: '10px 15px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '5px', fontSize: '12px', color: '#ddd', maxHeight: '55px', overflowY: 'auto', boxSizing: 'border-box' }}>
-          <strong>Log:</strong> {gameMessage}
-        </div>
-        {isMyTurn && (
-          <button 
-            onClick={() => room.send("end_turn")}
-            style={{ padding: '12px 16px', background: '#e67e22', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            Passa Turno
-          </button>
+        {gameWon && (
+          <div style={{ flexShrink: 0, background: '#27ae60', color: '#fff', padding: '8px 15px', borderRadius: '5px', fontWeight: 'bold', fontSize: '14px', textAlign: 'center', width: '100%', boxSizing: 'border-box', marginBottom: '8px' }}>
+            🎉 SCENARIO COMPLETATO CON SUCCESSO!
+          </div>
         )}
-      </div>
 
+        {/* Viewport mappa */}
+        <div 
+          ref={mapContainerRef}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onWheel={handleWheel}
+          style={{ 
+            flex: 1,
+            width: '100%', 
+            border: '2px solid #333', 
+            borderRadius: '8px', 
+            background: '#141414', 
+            position: 'relative', 
+            overflow: 'hidden',
+            cursor: isDragging ? 'grabbing' : 'grab',
+            touchAction: 'none',
+            marginBottom: '8px',
+            boxSizing: 'border-box'
+          }}
+        >
+          <div style={{
+            position: 'absolute',
+            top: '0px',
+            left: '0px',
+            width: '0px',
+            height: '0px',
+            transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
+            transformOrigin: '0 0'
+          }}>
+            
+            {/* Tessere */}
+            {Object.entries(tiles).map(([id, tile]) => (
+              <div
+                key={id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (room && isMyTurn) room.send("move_to_tile", { tileId: tile.id });
+                }}
+                style={{
+                  position: 'absolute',
+                  left: `${tile.x - 75}px`,
+                  top: `${tile.y - 75}px`,
+                  width: '150px',
+                  height: '150px',
+                  background: '#2c3e50',
+                  border: currentPlayer.currentTile === tile.id ? '3px solid #f1c40f' : '3px solid #e74c3c',
+                  borderRadius: '6px',
+                  cursor: isMyTurn ? 'pointer' : 'default',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.4)',
+                  zIndex: 1
+                }}
+              >
+                <span style={{ fontSize: '12px', color: '#ecf0f1', fontWeight: 'bold', textAlign: 'center', padding: '4px' }}>
+                  {tile.name}
+                </span>
+              </div>
+            ))}
+
+            {/* Oggetti e Porte */}
+            {Object.entries(interactions).map(([id, spot]) => (
+              <div
+                key={id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (room && isMyTurn) room.send("interact", { spotId: id });
+                }}
+                style={{
+                  position: 'absolute',
+                  left: `${spot.x - 15}px`,
+                  top: `${spot.y - 15}px`,
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  background: spot.type === 'door' ? (spot.state === 'open' ? '#27ae60' : '#c0392b') : (spot.state === 'explored' ? '#7f8c8d' : '#f1c40f'),
+                  border: '2px solid #fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  cursor: isMyTurn ? 'pointer' : 'default',
+                  zIndex: 2
+                }}
+                title={`${spot.type} (${spot.state})`}
+              >
+                {spot.type === 'door' ? '🚪' : '🔍'}
+              </div>
+            ))}
+
+            {/* Giocatori */}
+            {Object.entries(players).map(([id, p]) => (
+              <div
+                key={id}
+                style={{
+                  position: 'absolute',
+                  left: `${p.x - 18}px`,
+                  top: `${p.y - 18}px`,
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: id === clientId ? '#d35400' : '#2980b9',
+                  border: '2px solid #ffffff',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  color: '#fff',
+                  zIndex: 3
+                }}
+                title={`Giocatore ${id}`}
+              >
+                {id.substring(0, 2).toUpperCase()}
+              </div>
+            ))}
+
+          </div>
+        </div>
+
+        {/* Pannello inferiore con Log e Passa Turno */}
+        <div style={{ flexShrink: 0, width: '100%', display: 'flex', gap: '10px', alignItems: 'center', boxSizing: 'border-box' }}>
+          <div style={{ flex: 1, padding: '10px 15px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '5px', fontSize: '12px', color: '#ddd', maxHeight: '55px', overflowY: 'auto', boxSizing: 'border-box' }}>
+            <strong>Log:</strong> {gameMessage}
+          </div>
+          {isMyTurn && (
+            <button 
+              onClick={() => room.send("end_turn")}
+              style={{ padding: '12px 16px', background: '#e67e22', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              Passa Turno
+            </button>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 }
