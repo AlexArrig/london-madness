@@ -38,10 +38,10 @@ class MadnessState extends Schema {
   @type("string") currentPhase: string = "investigators";
 }
 
-export class GameRoom extends Room<MadnessState> {
+export class GameRoom extends Room {
   
   onCreate(options: any) {
-    this.setState(new MadnessState() as any);
+    this.setState(new MadnessState());
     
     // Configura la capienza massima scelta dal creatore (da 1 a 5, default 4)
     const max = options.maxPlayers ? parseInt(options.maxPlayers, 10) : 4;
