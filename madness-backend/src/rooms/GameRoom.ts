@@ -53,10 +53,12 @@ export class GameRoom extends Room<any> {
       if (!this.isPlayerTurn(client.sessionId)) return;
 
       const player = this.state.players.get(client.sessionId);
+      if (!player) return;
+
       const currentTile = this.state.tiles.get(player.currentTile);
       const targetTile = this.state.tiles.get(data.tileId);
       
-      if (!player || !currentTile || !targetTile) return;
+      if (!currentTile || !targetTile) return;
 
       if (player.actionsLeft <= 0) {
         this.state.gameMessage = "Hai esaurito le azioni in questo turno! Passa il turno.";
@@ -238,18 +240,20 @@ export class GameRoom extends Room<any> {
 
   private generateMansionLayout(difficulty: number) {
     const TILE_SIZE = 200;
+    const occupiedCoords = new Map<string, string>();
+
+    // 1. Stanza Iniziale
     const t0 = new Tile();
     t0.id = "tile_0";
     t0.name = "Hall d'Ingresso";
-    t0.x = 0; t0.y = 0; t0.explored = true;
+    t0.x = 0; 
+    t0.y = 0; 
+    t0.explored = true;
     this.state.tiles.set(t0.id, t0);
-
-    const occupiedCoords = new Map<string, string>();
     occupiedCoords.set("0,0", "tile_0");
-    const openRooms: Array<{ id: string; x: number; y: number }> = [{ id: "tile_0", x: 0, y: 0 }];
-    const totalRooms = difficulty * 2 + 3;
-    let createdCount = 1;
 
+    const roomsList = [{ id: "tile_0", x: 0, y: 0 }];
+    const totalRooms = difficulty * 2 + 3; // Es: Difficoltà 1 = 5 stanze + cripta
     const directions = [
       { dx: TILE_SIZE, dy: 0 },
       { dx: -TILE_SIZE, dy: 0 },
@@ -257,109 +261,100 @@ export class GameRoom extends Room<any> {
       { dx: 0, dy: -TILE_SIZE }
     ];
 
-    // Generazione rooms con validazione delle direzioni libere
-    while (createdCount < totalRooms && openRooms.length > 0) {
-      const randomIndex = Math.floor(Math.random() * openRooms.length);
-      const parent = openRooms[randomIndex];
+    let createdCount = 1;
 
-      // Filtra solo le direzioni che non sono già occupate da un'altra stanza
-      const availableDirs = directions.filter(dir => {
+    // 2. Generazione delle stanze intermedie garantita
+    while (createdCount < totalRooms && roomsList.length > 0) {
+      // Prendi l'ultima stanza aggiunta per mantenere un flusso ramificato coerente
+      const parent = roomsList[roomsList.length - 1];
+
+      // Trova una direzione libera attorno al parent
+      const validDirs = directions.filter(dir => {
         const nx = parent.x + dir.dx;
         const ny = parent.y + dir.dy;
         return !occupiedCoords.has(`${nx},${ny}`);
       });
 
-      if (availableDirs.length === 0) {
-        // Se la stanza corrente non ha direzioni libere attorno, viene rimossa per evitare loop infiniti
-        openRooms.splice(randomIndex, 1);
+      if (validDirs.length === 0) {
+        // Se l'ultima non ha spazio, rimuovila dalla coda e prova con un'altra esistente
+        roomsList.pop();
         continue;
       }
 
-      // Sceglie una direzione casuale tra quelle valide rimaste
-      const dir = availableDirs[Math.floor(Math.random() * availableDirs.length)];
+      const dir = validDirs[Math.floor(Math.random() * validDirs.length)];
       const nx = parent.x + dir.dx;
       const ny = parent.y + dir.dy;
 
+      const tileId = `tile_${createdCount}`;
       const tile = new Tile();
-      tile.id = `tile_${createdCount}`;
+      tile.id = tileId;
       tile.name = `Stanza ${createdCount}`;
-      tile.x = nx; 
+      tile.x = nx;
       tile.y = ny;
       this.state.tiles.set(tile.id, tile);
       occupiedCoords.set(`${nx},${ny}`, tile.id);
 
+      // Crea la porta di collegamento
       const door = new InteractionSpot();
       door.id = `door_${parent.x}_${parent.y}_${nx}_${ny}`;
       door.type = "door";
       door.x = parent.x + (dir.dx / 2);
       door.y = parent.y + (dir.dy / 2);
-      door.state = (createdCount <= 1) ? "open" : "closed";
+      door.state = (createdCount === 1) ? "open" : "closed";
       this.state.interactions.set(door.id, door);
 
-      openRooms.push({ id: tile.id, x: nx, y: ny });
+      roomsList.push({ id: tileId, x: nx, y: ny });
       createdCount++;
     }
 
-    // Validazione e posizionamento sicuro della Cripta Finale
-    const last = openRooms.length > 0 ? openRooms[openRooms.length - 1] : { id: "tile_0", x: 0, y: 0 };
+    // 3. Posizionamento garantito della Cripta Finale (collegata all'ultima stanza creata o a una vicina)
+    const lastRoom = roomsList[roomsList.length - 1] || { x: 0, y: 0 };
     let finalPlaced = false;
 
-    // Tentativo 1: Cerca uno spazio libero vicino all'ultima stanza generata
     for (const dir of directions) {
-      const fnx = last.x + dir.dx;
-      const fny = last.y + dir.dy;
+      const fnx = lastRoom.x + dir.dx;
+      const fny = lastRoom.y + dir.dy;
       if (!occupiedCoords.has(`${fnx},${fny}`)) {
         const finalTile = new Tile();
-        finalTile.id = "tile_final"; 
+        finalTile.id = "tile_final";
         finalTile.name = "Cripta Finale";
-        finalTile.x = fnx; 
+        finalTile.x = fnx;
         finalTile.y = fny;
         this.state.tiles.set(finalTile.id, finalTile);
 
         const finalDoor = new InteractionSpot();
-        finalDoor.id = "door_final"; 
+        finalDoor.id = "door_final";
         finalDoor.type = "door";
-        finalDoor.x = last.x + (dir.dx / 2); 
-        finalDoor.y = last.y + (dir.dy / 2);
-        finalDoor.state = "closed"; 
+        finalDoor.x = lastRoom.x + (dir.dx / 2);
+        finalDoor.y = lastRoom.y + (dir.dy / 2);
+        finalDoor.state = "closed";
         finalDoor.requiredKey = "key";
         this.state.interactions.set(finalDoor.id, finalDoor);
-        
+
         finalPlaced = true;
         break;
       }
     }
 
-    // Tentativo 2 (Fallback di sicurezza): Scansiona qualsiasi stanza esistente per trovare uno spazio libero adiacente
+    // Fallback estremo se lo spazio attorno all'ultima stanza fosse totalmente saturato
     if (!finalPlaced) {
-      for (const [coordKey, tileId] of occupiedCoords.entries()) {
-        const [tx, ty] = coordKey.split(',').map(Number);
-        for (const dir of directions) {
-          const fnx = tx + dir.dx;
-          const fny = ty + dir.dy;
-          if (!occupiedCoords.has(`${fnx},${fny}`)) {
-            const finalTile = new Tile();
-            finalTile.id = "tile_final"; 
-            finalTile.name = "Cripta Finale";
-            finalTile.x = fnx; 
-            finalTile.y = fny;
-            this.state.tiles.set(finalTile.id, finalTile);
+      const fallbackTile = new Tile();
+      fallbackTile.id = "tile_final";
+      fallbackTile.name = "Cripta Finale";
+      fallbackTile.x = lastRoom.x + TILE_SIZE;
+      fallbackTile.y = lastRoom.y;
+      this.state.tiles.set(fallbackTile.id, fallbackTile);
 
-            const finalDoor = new InteractionSpot();
-            finalDoor.id = "door_final"; 
-            finalDoor.type = "door";
-            finalDoor.x = tx + (dir.dx / 2); 
-            finalDoor.y = ty + (dir.dy / 2);
-            finalDoor.state = "closed"; 
-            finalDoor.requiredKey = "key";
-            this.state.interactions.set(finalDoor.id, finalDoor);
-
-            finalPlaced = true;
-            break;
-          }
-        }
-        if (finalPlaced) break;
-      }
+      const fallbackDoor = new InteractionSpot();
+      fallbackDoor.id = "door_final";
+      fallbackDoor.type = "door";
+      fallbackDoor.x = lastRoom.x + (TILE_SIZE / 2);
+      fallbackDoor.y = lastRoom.y;
+      fallbackDoor.state = "closed";
+      fallbackDoor.requiredKey = "key";
+      this.state.interactions.set(fallbackDoor.id, fallbackDoor);
     }
+
+    console.log(`[Mansion Generator] Mappa generata con successo. Totale tessere: ${this.state.tiles.size}, Porte: ${this.state.interactions.size}`);
   }
 }
