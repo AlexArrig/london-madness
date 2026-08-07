@@ -251,10 +251,10 @@ export default function App() {
   const isMyTurn = activePlayerId === clientId && currentPhase === "investigators";
 
   return (
-    <div style={{ background: '#121212', color: '#fff', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'sans-serif', overflow: 'hidden', padding: '10px', boxSizing: 'border-box' }}>
+    <div style={{ background: '#121212', color: '#fff', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', overflow: 'hidden', padding: '10px', boxSizing: 'border-box' }}>
       
       {/* Barra superiore informazioni */}
-      <div style={{ width: '100%', maxWidth: '900px', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', background: '#1a1a1a', padding: '10px 15px', borderRadius: '6px', border: '1px solid #333', boxSizing: 'border-box' }}>
+      <div style={{ flexShrink: 0, width: '100%', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', background: '#1a1a1a', padding: '10px 15px', borderRadius: '6px', border: '1px solid #333', boxSizing: 'border-box', marginBottom: '8px' }}>
         <div>ID: <code style={{ color: '#f1c40f', background: '#222', padding: '2px 6px', borderRadius: '4px', userSelect: 'all' }}>{room?.roomId}</code></div>
         <div style={{ color: isMyTurn ? '#2ecc71' : '#e74c3c', fontWeight: 'bold' }}>
           {currentPhase === "monsters" ? "⚠️ TURNO DEI MOSTRI" : (isMyTurn ? "🟢 È IL TUO TURNO" : "⏳ TURNO ALTRUI")}
@@ -264,7 +264,7 @@ export default function App() {
       </div>
 
       {gameWon && (
-        <div style={{ background: '#27ae60', color: '#fff', padding: '8px 15px', borderRadius: '5px', fontWeight: 'bold', fontSize: '14px', textAlign: 'center', width: '100%', maxWidth: '900px', boxSizing: 'border-box' }}>
+        <div style={{ flexShrink: 0, background: '#27ae60', color: '#fff', padding: '8px 15px', borderRadius: '5px', fontWeight: 'bold', fontSize: '14px', textAlign: 'center', width: '100%', boxSizing: 'border-box', marginBottom: '8px' }}>
           🎉 SCENARIO COMPLETATO CON SUCCESSO!
         </div>
       )}
@@ -282,25 +282,25 @@ export default function App() {
         style={{ 
           flex: 1,
           width: '100%', 
-          maxWidth: '900px',
-          margin: '10px 0',
           border: '2px solid #333', 
           borderRadius: '8px', 
           background: '#141414', 
           position: 'relative', 
           overflow: 'hidden',
           cursor: isDragging ? 'grabbing' : 'grab',
-          touchAction: 'none'
+          touchAction: 'none',
+          marginBottom: '8px',
+          boxSizing: 'border-box'
         }}
       >
         <div style={{
           position: 'absolute',
-          top: '50%',
-          left: '50%',
+          top: '0px',
+          left: '0px',
           width: '0px',
           height: '0px',
           transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
-          transformOrigin: 'center center'
+          transformOrigin: '0 0'
         }}>
           
           {/* Tessere */}
@@ -396,8 +396,8 @@ export default function App() {
       </div>
 
       {/* Pannello inferiore con Log e Passa Turno */}
-      <div style={{ width: '100%', maxWidth: '900px', display: 'flex', gap: '10px', alignItems: 'center', boxSizing: 'border-box' }}>
-        <div style={{ flex: 1, padding: '10px 15px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '5px', fontSize: '12px', color: '#ddd', maxHeight: '60px', overflowY: 'auto' }}>
+      <div style={{ flexShrink: 0, width: '100%', display: 'flex', gap: '10px', alignItems: 'center', boxSizing: 'border-box' }}>
+        <div style={{ flex: 1, padding: '10px 15px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '5px', fontSize: '12px', color: '#ddd', maxHeight: '55px', overflowY: 'auto', boxSizing: 'border-box' }}>
           <strong>Log:</strong> {gameMessage}
         </div>
         {isMyTurn && (
